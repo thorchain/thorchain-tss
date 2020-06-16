@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"path"
 	"sort"
 	"strconv"
 	"strings"
@@ -15,6 +14,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/binance-chain/tss-lib/ecdsa/signing"
 	btss "github.com/binance-chain/tss-lib/tss"
 	"github.com/libp2p/go-libp2p-peerstore/addr"
 
@@ -22,7 +22,6 @@ import (
 
 	"gitlab.com/thorchain/tss/go-tss/conversion"
 
-	bc "github.com/binance-chain/tss-lib/common"
 	"github.com/libp2p/go-libp2p-core/peer"
 	maddr "github.com/multiformats/go-multiaddr"
 	tcrypto "github.com/tendermint/tendermint/crypto"
@@ -169,12 +168,12 @@ func (s *TssKeysignTestSuite) TestSignMessage(c *C) {
 		return
 	}
 	sort.Strings(testPubKeys)
-	req := NewRequest("thorpub1addwnpepqv6xp3fmm47dfuzglywqvpv8fdjv55zxte4a26tslcezns5czv586u2fw33", "helloworld-test111", 10, testPubKeys, "")
+	req := NewRequest("thorpub1addwnpepqv6xp3fmm47dfuzglywqvpv8fdjv55zxte4a26tslcezns5czv586u2fw33", "helloworld-test111", testPubKeys)
 	messageID, err := common.MsgToHashString([]byte(req.Message))
 	c.Assert(err, IsNil)
 	wg := sync.WaitGroup{}
 	lock := &sync.Mutex{}
-	keysignResult := make(map[int]*bc.SignatureData)
+	keysignResult := make(map[int]*signing.SignatureData)
 	conf := common.TssConfig{
 		KeyGenTimeout:   90 * time.Second,
 		KeySignTimeout:  90 * time.Second,
@@ -216,10 +215,10 @@ func (s *TssKeysignTestSuite) TestSignMessage(c *C) {
 	var signature string
 	for _, item := range keysignResult {
 		if len(signature) == 0 {
-			signature = string(item.S) + string(item.R)
+			signature = string(item.GetSignature().S) + string(item.GetSignature().R)
 			continue
 		}
-		c.Assert(signature, Equals, string(item.S)+string(item.R))
+		c.Assert(signature, Equals, string(item.GetSignature().S)+string(item.GetSignature().R))
 	}
 }
 
@@ -253,7 +252,7 @@ func (s *TssKeysignTestSuite) TestSignMessageWithStop(c *C) {
 		return
 	}
 	sort.Strings(testPubKeys)
-	req := NewRequest("thorpub1addwnpepqv6xp3fmm47dfuzglywqvpv8fdjv55zxte4a26tslcezns5czv586u2fw33", "helloworld-test111", 10, testPubKeys, "")
+	req := NewRequest("thorpub1addwnpepqv6xp3fmm47dfuzglywqvpv8fdjv55zxte4a26tslcezns5czv586u2fw33", "helloworld-test111", testPubKeys)
 	messageID, err := common.MsgToHashString([]byte(req.Message))
 	c.Assert(err, IsNil)
 	wg := sync.WaitGroup{}
@@ -336,7 +335,7 @@ func (s *TssKeysignTestSuite) TestSignMessageRejectOnePeer(c *C) {
 		return
 	}
 	sort.Strings(testPubKeys)
-	req := NewRequest("thorpub1addwnpepqv6xp3fmm47dfuzglywqvpv8fdjv55zxte4a26tslcezns5czv586u2fw33", "helloworld-test111", 10, testPubKeys, "")
+	req := NewRequest("thorpub1addwnpepqv6xp3fmm47dfuzglywqvpv8fdjv55zxte4a26tslcezns5czv586u2fw33", "helloworld-test111", testPubKeys)
 	messageID, err := common.MsgToHashString([]byte(req.Message))
 	c.Assert(err, IsNil)
 	wg := sync.WaitGroup{}
@@ -378,14 +377,6 @@ func (s *TssKeysignTestSuite) TestSignMessageRejectOnePeer(c *C) {
 		}(i)
 	}
 	wg.Wait()
-}
-
-func (s *TssKeysignTestSuite) TearDownSuite(c *C) {
-	for i, _ := range s.comms {
-		tempFilePath := path.Join(os.TempDir(), strconv.Itoa(i))
-		err := os.RemoveAll(tempFilePath)
-		c.Assert(err, IsNil)
-	}
 }
 
 func (s *TssKeysignTestSuite) TearDownTest(c *C) {

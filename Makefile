@@ -8,7 +8,9 @@ clear:
 	clear
 
 tools:
-	go install ./tools/tss-recovery
+	go install ./cmd/tss-recovery
+	go install ./cmd/tss-benchgen
+	go install ./cmd/tss-benchsign
 
 install: go.sum
 	go install ./cmd/tss

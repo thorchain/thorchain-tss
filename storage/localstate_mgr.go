@@ -84,7 +84,7 @@ func (fsm *FileStateMgr) SaveLocalState(state KeygenLocalState) error {
 	if err != nil {
 		return err
 	}
-	return ioutil.WriteFile(filePathName, buf, 0655)
+	return ioutil.WriteFile(filePathName, buf, 0o655)
 }
 
 // GetLocalState read the local state from file system
@@ -133,7 +133,7 @@ func (fsm *FileStateMgr) SaveAddressBook(address map[peer.ID]addr.AddrList) erro
 	}
 	fsm.writeLock.Lock()
 	defer fsm.writeLock.Unlock()
-	return ioutil.WriteFile(filePathName, buf.Bytes(), 0655)
+	return ioutil.WriteFile(filePathName, buf.Bytes(), 0o655)
 }
 
 func (fsm *FileStateMgr) RetrieveP2PAddresses() (addr.AddrList, error) {

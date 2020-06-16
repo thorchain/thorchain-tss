@@ -1,7 +1,9 @@
 {
-  "signature": "r7ESMB4LnZndFJzInRPxO8JANm+6Dj2VuNPFqqIe2FRCOk4IApThDrdEZWjEqgqTycTnLIg1d6QIg2RENZRzuQ==",
-  "signature_recovery": "AA==",
-  "r": "r7ESMB4LnZndFJzInRPxO8JANm+6Dj2VuNPFqqIe2FQ=",
-  "s": "QjpOCAKU4Q63RGVoxKoKk8nE5yyINXekCINkRDWUc7k=",
-  "m": "FRRCNZvzB0dcXkVHyeSjsWT7n6OUmZexSoKd7gRqtqo="
+  "signature": {
+    "signature": "r7ESMB4LnZndFJzInRPxO8JANm+6Dj2VuNPFqqIe2FRCOk4IApThDrdEZWjEqgqTycTnLIg1d6QIg2RENZRzuQ==",
+    "signature_recovery": "AA==",
+    "r": "r7ESMB4LnZndFJzInRPxO8JANm+6Dj2VuNPFqqIe2FQ=",
+    "s": "QjpOCAKU4Q63RGVoxKoKk8nE5yyINXekCINkRDWUc7k=",
+    "m": "FRRCNZvzB0dcXkVHyeSjsWT7n6OUmZexSoKd7gRqtqo="
+  }
 }

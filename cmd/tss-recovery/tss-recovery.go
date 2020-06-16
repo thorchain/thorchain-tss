@@ -12,7 +12,6 @@ import (
 )
 
 func main() {
-
 	n := *(flag.Int("n", 3, "signing party size"))
 	threshold := n - 1
 	export := flag.String("export", "", "path to export keyfile")
