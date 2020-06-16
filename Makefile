@@ -1,4 +1,6 @@
-.PHONY: install build test test-watch lint tools
+module = gitlab.com/thorchain/tss/go-tss
+
+.PHONY: clear tools install test test-watch lint-pre lint lint-verbose protob build docker-gitlab-login docker-gitlab-push docker-gitlab-build
 
 all: lint build
 
@@ -32,8 +34,11 @@ lint: lint-pre
 lint-verbose: lint-pre
 	@golangci-lint run -v
 
-build:
-	@go build ./...
+protob:
+	protoc --go_out=module=$(module):. ./messages/*.proto
+
+build: protob
+	go build ./...
 
 # ------------------------------- GitLab ------------------------------- #
 docker-gitlab-login:

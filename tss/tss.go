@@ -4,7 +4,6 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
-	"os"
 	"sort"
 	"sync"
 	"time"
@@ -66,11 +65,7 @@ func NewTss(
 	var bootstrapPeers addr.AddrList
 	savedPeers, err := stateManager.RetrieveP2PAddresses()
 	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			bootstrapPeers = cmdBootstrapPeers
-		} else {
-			return nil, fmt.Errorf("fail to load address book %w", err)
-		}
+		bootstrapPeers = cmdBootstrapPeers
 	} else {
 		bootstrapPeers = savedPeers
 		bootstrapPeers = append(bootstrapPeers, cmdBootstrapPeers...)
