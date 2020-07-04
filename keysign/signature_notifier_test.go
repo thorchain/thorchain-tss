@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	bc "github.com/binance-chain/tss-lib/common"
+	"github.com/binance-chain/tss-lib/ecdsa/signing"
 	"github.com/libp2p/go-libp2p-core/peer"
 	tnet "github.com/libp2p/go-libp2p-testing/net"
 	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
@@ -68,7 +68,7 @@ func TestSignatureNotifierHappyPath(t *testing.T) {
 	content, err := ioutil.ReadFile(sigFile)
 	assert.Nil(t, err)
 	assert.NotNil(t, content)
-	var signature bc.SignatureData
+	var signature signing.SignatureData
 	err = json.Unmarshal(content, &signature)
 	assert.Nil(t, err)
 	sigChan := make(chan string)

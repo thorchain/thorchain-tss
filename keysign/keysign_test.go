@@ -15,6 +15,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/binance-chain/tss-lib/ecdsa/signing"
 	btss "github.com/binance-chain/tss-lib/tss"
 	"github.com/libp2p/go-libp2p-peerstore/addr"
 
@@ -22,7 +23,6 @@ import (
 
 	"gitlab.com/thorchain/tss/go-tss/conversion"
 
-	bc "github.com/binance-chain/tss-lib/common"
 	"github.com/libp2p/go-libp2p-core/peer"
 	maddr "github.com/multiformats/go-multiaddr"
 	tcrypto "github.com/tendermint/tendermint/crypto"
@@ -174,7 +174,7 @@ func (s *TssKeysignTestSuite) TestSignMessage(c *C) {
 	c.Assert(err, IsNil)
 	wg := sync.WaitGroup{}
 	lock := &sync.Mutex{}
-	keysignResult := make(map[int]*bc.SignatureData)
+	keysignResult := make(map[int]*signing.SignatureData)
 	conf := common.TssConfig{
 		KeyGenTimeout:   90 * time.Second,
 		KeySignTimeout:  90 * time.Second,
@@ -216,10 +216,10 @@ func (s *TssKeysignTestSuite) TestSignMessage(c *C) {
 	var signature string
 	for _, item := range keysignResult {
 		if len(signature) == 0 {
-			signature = string(item.S) + string(item.R)
+			signature = string(item.GetSignature().S) + string(item.GetSignature().R)
 			continue
 		}
-		c.Assert(signature, Equals, string(item.S)+string(item.R))
+		c.Assert(signature, Equals, string(item.GetSignature().S)+string(item.GetSignature().R))
 	}
 }
 
