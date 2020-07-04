@@ -8,7 +8,6 @@ import (
 	"sync"
 	"time"
 
-	bc "github.com/binance-chain/tss-lib/common"
 	"github.com/binance-chain/tss-lib/ecdsa/signing"
 	btss "github.com/binance-chain/tss-lib/tss"
 	"github.com/rs/zerolog"
@@ -58,7 +57,7 @@ func (tKeySign *TssKeySign) GetTssCommonStruct() *common.TssCommon {
 }
 
 // signMessage
-func (tKeySign *TssKeySign) SignMessage(msgToSign []byte, localStateItem storage.KeygenLocalState, parties []string) (*bc.SignatureData, error) {
+func (tKeySign *TssKeySign) SignMessage(msgToSign []byte, localStateItem storage.KeygenLocalState, parties []string) (*signing.SignatureData, error) {
 	partiesID, localPartyID, err := conversion.GetParties(parties, localStateItem.LocalPartyKey)
 	tKeySign.localParty = localPartyID
 	if err != nil {
@@ -77,7 +76,7 @@ func (tKeySign *TssKeySign) SignMessage(msgToSign []byte, localStateItem storage
 	ctx := btss.NewPeerContext(partiesID)
 	params := btss.NewParameters(ctx, localPartyID, len(partiesID), threshold)
 	outCh := make(chan btss.Message, len(partiesID))
-	endCh := make(chan *bc.SignatureData, len(partiesID))
+	endCh := make(chan *signing.SignatureData, len(partiesID))
 	errCh := make(chan struct{})
 	m, err := common.MsgToHashInt(msgToSign)
 	if err != nil {
@@ -134,7 +133,7 @@ func (tKeySign *TssKeySign) SignMessage(msgToSign []byte, localStateItem storage
 	return result, nil
 }
 
-func (tKeySign *TssKeySign) processKeySign(errChan chan struct{}, outCh <-chan btss.Message, endCh <-chan *bc.SignatureData) (*bc.SignatureData, error) {
+func (tKeySign *TssKeySign) processKeySign(errChan chan struct{}, outCh <-chan btss.Message, endCh <-chan *signing.SignatureData) (*signing.SignatureData, error) {
 	defer tKeySign.logger.Info().Msg("key sign finished")
 	tKeySign.logger.Info().Msg("start to read messages from local party")
 	tssConf := tKeySign.tssCommonStruct.GetConf()

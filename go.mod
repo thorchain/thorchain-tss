@@ -22,6 +22,7 @@ require (
 	github.com/libp2p/go-yamux v1.3.8 // indirect
 	github.com/magiconair/properties v1.8.1
 	github.com/multiformats/go-multiaddr v0.2.0
+	github.com/pkg/errors v0.9.1
 	github.com/rs/zerolog v1.17.2
 	github.com/stretchr/testify v1.6.1
 	github.com/tendermint/btcd v0.1.1
@@ -36,4 +37,4 @@ replace github.com/etcd-io/bbolt => go.etcd.io/bbolt v1.3.5-0.20200615073812-232
 
 replace github.com/binance-chain/go-sdk => gitlab.com/thorchain/binance-sdk v1.2.2
 
-replace github.com/binance-chain/tss-lib => github.com/notatestuser/tss-lib v0.0.0-20200617095437-b35d31d4bece
+replace github.com/binance-chain/tss-lib => github.com/notatestuser/tss-lib v0.0.0-20200706111719-d6697c2539be

@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"io/ioutil"
 
-	bc "github.com/binance-chain/tss-lib/common"
+	"github.com/binance-chain/tss-lib/ecdsa/signing"
 	. "gopkg.in/check.v1"
 
 	"gitlab.com/thorchain/tss/go-tss/common"
@@ -54,7 +54,7 @@ func (NotifierTestSuite) TestNotifierHappyPath(c *C) {
 	content, err := ioutil.ReadFile(sigFile)
 	c.Assert(err, IsNil)
 	c.Assert(content, NotNil)
-	var signature bc.SignatureData
+	var signature signing.SignatureData
 	err = json.Unmarshal(content, &signature)
 	c.Assert(err, IsNil)
 
@@ -62,7 +62,7 @@ func (NotifierTestSuite) TestNotifierHappyPath(c *C) {
 	contentInvalid, err := ioutil.ReadFile(sigInvalidFile)
 	c.Assert(err, IsNil)
 	c.Assert(contentInvalid, NotNil)
-	var sigInvalid bc.SignatureData
+	var sigInvalid signing.SignatureData
 	c.Assert(json.Unmarshal(contentInvalid, &sigInvalid), IsNil)
 	// valid keysign peer , but invalid signature we should continue to listen
 	finish, err := n.ProcessSignature(&sigInvalid)

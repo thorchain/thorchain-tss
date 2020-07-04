@@ -83,12 +83,12 @@ func (t *TssServer) KeySign(req keysign.Request) (keysign.Response, error) {
 		if err != nil {
 			return emptyResp, fmt.Errorf("fail to get signature:%w", err)
 		}
-		if data == nil || (len(data.S) == 0 && len(data.R) == 0) {
+		if data == nil || (len(data.GetSignature().S) == 0 && len(data.GetSignature().R) == 0) {
 			return emptyResp, errors.New("keysign failed")
 		}
 		return keysign.NewResponse(
-			base64.StdEncoding.EncodeToString(data.R),
-			base64.StdEncoding.EncodeToString(data.S),
+			base64.StdEncoding.EncodeToString(data.GetSignature().R),
+			base64.StdEncoding.EncodeToString(data.GetSignature().S),
 			common.Success,
 			blame.Blame{},
 		), nil
@@ -146,8 +146,8 @@ func (t *TssServer) KeySign(req keysign.Request) (keysign.Response, error) {
 		return emptyResp, fmt.Errorf("fail to broadcast signature:%w", err)
 	}
 	return keysign.NewResponse(
-		base64.StdEncoding.EncodeToString(signatureData.R),
-		base64.StdEncoding.EncodeToString(signatureData.S),
+		base64.StdEncoding.EncodeToString(signatureData.GetSignature().R),
+		base64.StdEncoding.EncodeToString(signatureData.GetSignature().S),
 		common.Success,
 		blame.Blame{},
 	), nil
