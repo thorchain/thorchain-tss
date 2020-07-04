@@ -7,11 +7,12 @@
 package messages
 
 import (
+	reflect "reflect"
+	sync "sync"
+
 	proto "github.com/golang/protobuf/proto"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
-	reflect "reflect"
-	sync "sync"
 )
 
 const (
@@ -229,13 +230,16 @@ func file_messages_join_party_proto_rawDescGZIP() []byte {
 	return file_messages_join_party_proto_rawDescData
 }
 
-var file_messages_join_party_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_messages_join_party_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
-var file_messages_join_party_proto_goTypes = []interface{}{
-	(JoinPartyResponse_ResponseType)(0), // 0: messages.JoinPartyResponse.ResponseType
-	(*JoinPartyRequest)(nil),            // 1: messages.JoinPartyRequest
-	(*JoinPartyResponse)(nil),           // 2: messages.JoinPartyResponse
-}
+var (
+	file_messages_join_party_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
+	file_messages_join_party_proto_msgTypes  = make([]protoimpl.MessageInfo, 2)
+	file_messages_join_party_proto_goTypes   = []interface{}{
+		(JoinPartyResponse_ResponseType)(0), // 0: messages.JoinPartyResponse.ResponseType
+		(*JoinPartyRequest)(nil),            // 1: messages.JoinPartyRequest
+		(*JoinPartyResponse)(nil),           // 2: messages.JoinPartyResponse
+	}
+)
+
 var file_messages_join_party_proto_depIdxs = []int32{
 	0, // 0: messages.JoinPartyResponse.type:type_name -> messages.JoinPartyResponse.ResponseType
 	1, // [1:1] is the sub-list for method output_type
