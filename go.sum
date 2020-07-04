@@ -585,6 +585,8 @@ github.com/notatestuser/tss-lib v0.0.0-20200617095437-b35d31d4bece h1:mtuA2dDUu1
 github.com/notatestuser/tss-lib v0.0.0-20200617095437-b35d31d4bece/go.mod h1:k3aakGk7BECiP83k6NrF/aZgzQ7U3trFJECKP7C+9CU=
 github.com/notatestuser/tss-lib v0.0.0-20200706111719-d6697c2539be h1:J3+O/vnnQQDb+terZXze5BN575uueDbz5L8OR9bCLfs=
 github.com/notatestuser/tss-lib v0.0.0-20200706111719-d6697c2539be/go.mod h1:k3aakGk7BECiP83k6NrF/aZgzQ7U3trFJECKP7C+9CU=
+github.com/notatestuser/tss-lib v0.0.0-20200706170527-0d1c9c597b96 h1:vaVOHvfZl+0I2ddMQTaokM1aQ5iqLULudytxcWGqU+A=
+github.com/notatestuser/tss-lib v0.0.0-20200706170527-0d1c9c597b96/go.mod h1:k3aakGk7BECiP83k6NrF/aZgzQ7U3trFJECKP7C+9CU=
 github.com/oklog/oklog v0.3.2/go.mod h1:FCV+B7mhrz4o+ueLpx+KqkyXRGMWOYEvfiXtdGtbWGs=
 github.com/oklog/run v1.0.0/go.mod h1:dlhp/R75TPv97u0XWUtDeV/lRKWPKSdTuV0TZvrmrQA=
 github.com/oklog/ulid v1.3.1/go.mod h1:CirwcVhetQ6Lv90oh/F+FBtV6XMibvdAFo93nm5qn4U=
