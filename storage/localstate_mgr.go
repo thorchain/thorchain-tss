@@ -84,7 +84,7 @@ func (fsm *FileStateMgr) SaveLocalState(state KeygenLocalState) error {
 	if err != nil {
 		return err
 	}
-	return ioutil.WriteFile(filePathName, buf, 0655)
+	return ioutil.WriteFile(filePathName, buf, 0o655)
 }
 
 // GetLocalState read the local state from file system
