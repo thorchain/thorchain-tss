@@ -22,6 +22,8 @@ import (
 	"golang.org/x/text/message"
 )
 
+const libLogLevel = "error"
+
 var (
 	expectedIncomingMsgs,
 	receivedIncomingMsgs,
@@ -47,43 +49,46 @@ func usage() {
 func main() {
 	prt := message.NewPrinter(language.English)
 	var (
-		parties = flag.Int("n", 20, "the number of party shares to generate (n)")
 		quorum  = flag.Int("q", 2, "the signing quorum (t+1)")
-		procs   = flag.Int("procs", runtime.NumCPU(), "the number of max go procs during tss benchmarking")
+		parties = flag.Int("n", 20, "the number of party shares to generate (n)")
+		procs   = flag.Int("procs", runtime.NumCPU(), "the number of max go procs (threads) to use")
 	)
 	flag.Usage = usage
 	if flag.Parse(); !flag.Parsed() {
 		usage()
 		os.Exit(1)
 	}
-	args := flag.Args()
 	if *parties <= 0 || *quorum <= 1 || *parties < *quorum {
 		fmt.Println("Error: n must be greater than 0, q must be greater than 1, q cannot be less than n.")
 		os.Exit(1)
 	}
 	if flag.NArg() < 1 {
-		fmt.Println("Error: datadir must be set. try something like `benchdata`.")
 		usage()
 		os.Exit(1)
 	}
-	dir := args[0]
+	dir := flag.Args()[0]
 	if _, err := os.Stat(dir); !os.IsNotExist(err) {
 		fmt.Printf("Error: `%s` already exists, delete it first and this tool will create it.\n", dir)
 		os.Exit(1)
 	}
-	if err := os.Mkdir(dir, 0777); err != nil {
+	if err := os.Mkdir(dir, os.ModePerm); err != nil {
 		panic(err)
 	}
+
+	fmt.Println("ECDSA/GG20 Benchmark Tool - KeyGen")
+	fmt.Println("----------------------------------")
 	fmt.Printf("Max go procs (threads): %d\n", *procs)
-	fmt.Printf("Generating %d shares (quorum=%d)...\n", *parties, *quorum)
+	fmt.Printf("Generating %d shares, quorum=%d...\n", *parties, *quorum)
+	fmt.Println("----------------------------------")
 
 	runtime.GOMAXPROCS(*procs)
 	start := time.Now()
-	run(dir, (*quorum)-1, *parties)
+	runKeyGen(dir, (*quorum)-1, *parties)
 	elapsed := time.Since(start)
 
 	fmt.Printf("Done. %d shares written to `%s`.\n", *parties, dir)
 	_, _ = prt.Printf("Finished in %d ms.\n", elapsed.Milliseconds())
+	os.Exit(0)
 }
 
 func setUp(level string) {
@@ -109,8 +114,8 @@ func incrementAndDisplayProgress() {
 	fmt.Printf("\rProgress: %d%%... ", int(progress*100))
 }
 
-func run(dir string, t, n int) {
-	setUp("error")
+func runKeyGen(dir string, t, n int) {
+	setUp(libLogLevel)
 	setUpProgress(n)
 
 	fmt.Printf("Starting... ")
