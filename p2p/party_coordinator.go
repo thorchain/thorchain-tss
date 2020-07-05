@@ -200,7 +200,7 @@ func (pc *PartyCoordinator) JoinPartyWithRetry(msg *messages.JoinPartyRequest, p
 	done := make(chan struct{})
 	wg.Add(1)
 	go func() {
-		wg.Done()
+		defer wg.Done()
 		for {
 			select {
 			case <-done:
