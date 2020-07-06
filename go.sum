@@ -583,10 +583,6 @@ github.com/nats-io/nkeys v0.1.3/go.mod h1:xpnFELMwJABBLVhffcfd1MZx6VsNRFpEugbxzi
 github.com/nats-io/nuid v1.0.1/go.mod h1:19wcPz3Ph3q0Jbyiqsd0kePYG7A95tJPxeL+1OSON2c=
 github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e h1:fD57ERR4JtEqsWbfPhv4DMiApHyliiK5xCTNVSPiaAs=
 github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e/go.mod h1:zD1mROLANZcx1PVRCS0qkT7pwLkGfwJo4zjcN/Tysno=
-github.com/notatestuser/tss-lib v0.0.0-20200617095437-b35d31d4bece h1:mtuA2dDUu1hJNYpIqM+XYIgEUnhW7NTBRnsgIO12SEM=
-github.com/notatestuser/tss-lib v0.0.0-20200617095437-b35d31d4bece/go.mod h1:k3aakGk7BECiP83k6NrF/aZgzQ7U3trFJECKP7C+9CU=
-github.com/notatestuser/tss-lib v0.0.0-20200706111719-d6697c2539be h1:J3+O/vnnQQDb+terZXze5BN575uueDbz5L8OR9bCLfs=
-github.com/notatestuser/tss-lib v0.0.0-20200706111719-d6697c2539be/go.mod h1:k3aakGk7BECiP83k6NrF/aZgzQ7U3trFJECKP7C+9CU=
 github.com/notatestuser/tss-lib v0.0.0-20200706170527-0d1c9c597b96 h1:vaVOHvfZl+0I2ddMQTaokM1aQ5iqLULudytxcWGqU+A=
 github.com/notatestuser/tss-lib v0.0.0-20200706170527-0d1c9c597b96/go.mod h1:k3aakGk7BECiP83k6NrF/aZgzQ7U3trFJECKP7C+9CU=
 github.com/oklog/oklog v0.3.2/go.mod h1:FCV+B7mhrz4o+ueLpx+KqkyXRGMWOYEvfiXtdGtbWGs=

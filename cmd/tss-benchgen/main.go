@@ -208,7 +208,7 @@ func tryWriteKeyGenDataFile(dir string, index int, data keygen.LocalPartySaveDat
 	// if it does, we won't re-create it here
 	fi, err := os.Stat(fixtureFileName)
 	if !(err == nil && fi != nil && !fi.IsDir()) {
-		fd, err := os.OpenFile(fixtureFileName, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
+		fd, err := os.OpenFile(fixtureFileName, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o600)
 		if err != nil {
 			panic(errors.Wrapf(err, "unable to open fixture file %s for writing", fixtureFileName))
 		}
