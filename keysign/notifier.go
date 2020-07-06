@@ -12,7 +12,7 @@ import (
 	"github.com/tendermint/tendermint/crypto/secp256k1"
 )
 
-// Notifier
+// Notifier is design to receive keysign signature, success or failure
 type Notifier struct {
 	messageID  string
 	message    []byte // the message
@@ -61,13 +61,18 @@ func (n *Notifier) verifySignature(data *bc.SignatureData) (bool, error) {
 // return value bool , true indicated we already gather all the signature from keysign party, and they are all match
 // false means we are still waiting for more signature from keysign party
 func (n *Notifier) ProcessSignature(data *bc.SignatureData) (bool, error) {
-	verify, err := n.verifySignature(data)
-	if err != nil {
-		return false, fmt.Errorf("fail to verify signature: %w", err)
+	// only need to verify the signature when data is not nil
+	// when data is nil , which means keysign  failed, there is no signature to be verified in that case
+	if data != nil {
+		verify, err := n.verifySignature(data)
+		if err != nil {
+			return false, fmt.Errorf("fail to verify signature: %w", err)
+		}
+		if !verify {
+			return false, nil
+		}
 	}
-	if !verify {
-		return false, nil
-	}
+	// it is ok to push nil to the resp channel , the receiver will check it
 	n.resp <- data
 	return true, nil
 }
