@@ -75,6 +75,7 @@ func main() {
 	fmt.Println("-----------------------------------")
 	fmt.Printf("Will test quorums %d-%d in %d runs\n", *startQuorum, *endQuorum, *runs)
 	fmt.Printf("Max go procs (threads): %d\n", *procs)
+	fmt.Println("No network latency.")
 	fmt.Println("-----------------------------------")
 
 	runtime.GOMAXPROCS(*procs)
@@ -94,6 +95,8 @@ func main() {
 			_, _ = prt.Printf("%d ms.\n", elapsed.Milliseconds())
 		}
 	}
+
+	fmt.Println("Results summary:")
 	printSummary(results)
 	os.Exit(0)
 }
@@ -199,16 +202,22 @@ func printSummary(results [][]result) {
 	for run := range results {
 		header = append(header, fmt.Sprintf("Run %d", run+1))
 	}
+	header = append(header, "Mean")
 	table.SetHeader(header)
 	rows := make([][]string, 0, len(results[0]))
 	for q, result := range results[0] {
 		row := []string{
 			prt.Sprintf("%d", result.quorum),
 		}
+		var avgDurationMS int64
 		for run := range results {
-			str := prt.Sprintf("%d ms", results[run][q].duration.Milliseconds())
+			durationMS := results[run][q].duration.Milliseconds()
+			str := prt.Sprintf("%d ms", durationMS)
 			row = append(row, str)
+			avgDurationMS += durationMS
 		}
+		avgDurationMS /= int64(len(results))
+		row = append(row, prt.Sprintf("%d ms", avgDurationMS))
 		rows = append(rows, row)
 	}
 	table.SetBorders(tablewriter.Border{Left: true, Top: true, Right: true, Bottom: true})

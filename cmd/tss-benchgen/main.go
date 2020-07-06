@@ -79,6 +79,7 @@ func main() {
 	fmt.Println("----------------------------------")
 	fmt.Printf("Max go procs (threads): %d\n", *procs)
 	fmt.Printf("Generating %d shares, quorum=%d...\n", *parties, *quorum)
+	fmt.Println("No network latency.")
 	fmt.Println("----------------------------------")
 
 	runtime.GOMAXPROCS(*procs)
