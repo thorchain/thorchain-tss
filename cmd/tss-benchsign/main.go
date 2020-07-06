@@ -195,7 +195,7 @@ outer:
 func printSummary(results [][]result) {
 	prt := message.NewPrinter(language.English)
 	table := tablewriter.NewWriter(os.Stdout)
-	header := []string{"Quorum", "Duration"}
+	header := []string{"Quorum"}
 	for run := range results {
 		header = append(header, fmt.Sprintf("Run %d", run+1))
 	}
@@ -204,7 +204,6 @@ func printSummary(results [][]result) {
 	for q, result := range results[0] {
 		row := []string{
 			prt.Sprintf("%d", result.quorum),
-			prt.Sprintf("%d ms", result.duration.Milliseconds()),
 		}
 		for run := range results {
 			str := prt.Sprintf("%d ms", results[run][q].duration.Milliseconds())
