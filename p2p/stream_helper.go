@@ -5,9 +5,12 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
+	"sync"
 	"time"
 
 	"github.com/libp2p/go-libp2p-core/network"
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 )
 
 const (
@@ -20,6 +23,53 @@ const (
 // applyDeadline will be true , and only disable it when we are doing test
 // the reason being the p2p network , mocknet, mock stream doesn't support SetReadDeadline ,SetWriteDeadline feature
 var ApplyDeadline = true
+
+type StreamMgr struct {
+	unusedStreams map[string][]network.Stream
+	streamLocker  *sync.RWMutex
+	logger        zerolog.Logger
+}
+
+func NewStreamMgr() *StreamMgr {
+	return &StreamMgr{
+		unusedStreams: make(map[string][]network.Stream),
+		streamLocker:  &sync.RWMutex{},
+		logger:        log.With().Str("module", "communication").Logger(),
+	}
+}
+
+func (sm *StreamMgr) ReleaseStream(msgID string) {
+	sm.streamLocker.RLock()
+	entries, ok := sm.unusedStreams[msgID]
+	sm.streamLocker.RUnlock()
+	if ok {
+		for _, el := range entries {
+			err := el.Reset()
+			if err != nil {
+				sm.logger.Error().Err(err).Msg("fail to reset the stream,skip it")
+			}
+		}
+		sm.streamLocker.Lock()
+		delete(sm.unusedStreams, msgID)
+		sm.streamLocker.Unlock()
+	}
+}
+
+func (sm *StreamMgr) AddStream(msgID string, stream network.Stream) {
+	if stream == nil {
+		return
+	}
+	sm.streamLocker.Lock()
+	defer sm.streamLocker.Unlock()
+	entries, ok := sm.unusedStreams[msgID]
+	if !ok {
+		entries := []network.Stream{stream}
+		sm.unusedStreams[msgID] = entries
+	} else {
+		entries = append(entries, stream)
+		sm.unusedStreams[msgID] = entries
+	}
+}
 
 // ReadStreamWithBuffer read data from the given stream
 func ReadStreamWithBuffer(stream network.Stream) ([]byte, error) {

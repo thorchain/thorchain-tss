@@ -14,7 +14,7 @@ import (
 
 // Notifier is design to receive keysign signature, success or failure
 type Notifier struct {
-	messageID  string
+	MessageID  string
 	message    []byte // the message
 	poolPubKey string
 	resp       chan *bc.SignatureData
@@ -32,7 +32,7 @@ func NewNotifier(messageID string, message []byte, poolPubKey string) (*Notifier
 		return nil, errors.New("pool pubkey is empty")
 	}
 	return &Notifier{
-		messageID:  messageID,
+		MessageID:  messageID,
 		message:    message,
 		poolPubKey: poolPubKey,
 		resp:       make(chan *bc.SignatureData, 1),

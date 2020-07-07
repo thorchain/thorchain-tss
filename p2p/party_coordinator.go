@@ -26,6 +26,7 @@ type PartyCoordinator struct {
 	timeout            time.Duration
 	peersGroup         map[string]*PeerStatus
 	joinPartyGroupLock *sync.Mutex
+	streamMgr          *StreamMgr
 }
 
 // NewPartyCoordinator create a new instance of PartyCoordinator
@@ -41,6 +42,7 @@ func NewPartyCoordinator(host host.Host, timeout time.Duration) *PartyCoordinato
 		timeout:            timeout,
 		peersGroup:         make(map[string]*PeerStatus),
 		joinPartyGroupLock: &sync.Mutex{},
+		streamMgr:          NewStreamMgr(),
 	}
 	host.SetStreamHandler(joinPartyProtocol, pc.HandleStream)
 	return pc
@@ -56,7 +58,7 @@ func (pc *PartyCoordinator) Stop() {
 // HandleStream handle party coordinate stream
 func (pc *PartyCoordinator) HandleStream(stream network.Stream) {
 	defer func() {
-		if err := stream.Close(); err != nil {
+		if err := stream.Reset(); err != nil {
 			pc.logger.Err(err).Msg("fail to close the stream")
 		}
 	}()
@@ -165,11 +167,12 @@ func (pc *PartyCoordinator) sendRequestToPeer(msg *messages.JoinPartyRequest, re
 		pc.logger.Error().Err(ctx.Err()).Msg("fail to open stream with context timeout")
 		// we reset the whole connection of this peer
 		err := pc.host.Network().ClosePeer(remotePeer)
-		pc.logger.Error().Err(err).Msgf("fail to clolse the connection to peer %s", remotePeer.String())
+		pc.logger.Error().Err(err).Msgf("fail to close the connection to peer %s", remotePeer.String())
 		return ctx.Err()
 	}
 
 	defer func() {
+		pc.streamMgr.AddStream(msg.ID, stream)
 		if err := stream.Close(); err != nil {
 			pc.logger.Error().Err(err).Msg("fail to close stream")
 		}
@@ -240,4 +243,8 @@ func (pc *PartyCoordinator) JoinPartyWithRetry(msg *messages.JoinPartyRequest, p
 		return onlinePeers, nil
 	}
 	return onlinePeers, errJoinPartyTimeout
+}
+
+func (pc *PartyCoordinator) ReleaseStream(msgID string) {
+	pc.streamMgr.ReleaseStream(msgID)
 }

@@ -9,6 +9,7 @@ import (
 
 	"github.com/libp2p/go-libp2p-core/network"
 	"github.com/libp2p/go-libp2p-core/protocol"
+	"github.com/magiconair/properties/assert"
 )
 
 const testProtocolID protocol.ID = "/p2p/test-stream"
@@ -210,4 +211,27 @@ func TestReadPayload(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestStreamManager(t *testing.T) {
+	streamMgr := NewStreamMgr()
+	stream := NewMockNetworkStream()
+
+	streamMgr.AddStream("1", nil)
+	assert.Equal(t, len(streamMgr.unusedStreams), 0)
+	streamMgr.AddStream("1", stream)
+	streamMgr.AddStream("2", stream)
+	streamMgr.AddStream("3", stream)
+	streamMgr.ReleaseStream("1")
+	_, ok := streamMgr.unusedStreams["2"]
+	assert.Equal(t, ok, true)
+	_, ok = streamMgr.unusedStreams["3"]
+	assert.Equal(t, ok, true)
+	streamMgr.ReleaseStream("2")
+	_, ok = streamMgr.unusedStreams["2"]
+	assert.Equal(t, ok, false)
+	streamMgr.ReleaseStream("3")
+	assert.Equal(t, len(streamMgr.unusedStreams), 0)
+	streamMgr.ReleaseStream("3")
+	assert.Equal(t, len(streamMgr.unusedStreams), 0)
 }

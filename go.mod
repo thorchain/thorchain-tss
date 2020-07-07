@@ -20,7 +20,8 @@ require (
 	github.com/libp2p/go-libp2p-kad-dht v0.3.0
 	github.com/libp2p/go-libp2p-peerstore v0.1.4
 	github.com/libp2p/go-libp2p-testing v0.1.1
-	github.com/libp2p/go-yamux v1.2.4 // indirect
+	github.com/libp2p/go-yamux v1.3.8 // indirect
+	github.com/magiconair/properties v1.8.1
 	github.com/multiformats/go-multiaddr v0.2.0
 	github.com/rs/zerolog v1.17.2
 	github.com/stretchr/testify v1.5.1

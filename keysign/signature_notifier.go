@@ -39,6 +39,7 @@ type SignatureNotifier struct {
 	notifiers    map[string]*Notifier
 	messages     chan *signatureItem
 	wg           *sync.WaitGroup
+	streamMgr    *p2p.StreamMgr
 }
 
 // NewSignatureNotifier create a new instance of SignatureNotifier
@@ -51,6 +52,7 @@ func NewSignatureNotifier(host host.Host) *SignatureNotifier {
 		stopChan:     make(chan struct{}),
 		messages:     make(chan *signatureItem),
 		wg:           &sync.WaitGroup{},
+		streamMgr:    p2p.NewStreamMgr(),
 	}
 	host.SetStreamHandler(signatureNotifierProtocol, s.handleStream)
 	return s
@@ -59,7 +61,7 @@ func NewSignatureNotifier(host host.Host) *SignatureNotifier {
 // HandleStream handle signature notify stream
 func (s *SignatureNotifier) handleStream(stream network.Stream) {
 	defer func() {
-		if err := stream.Close(); err != nil {
+		if err := stream.Reset(); err != nil {
 			s.logger.Err(err).Msg("fail to close the stream")
 		}
 	}()
@@ -139,6 +141,7 @@ func (s *SignatureNotifier) sendOneMsgToPeer(m *signatureItem) error {
 	}
 	s.logger.Debug().Msgf("open stream to (%s) successfully", m.peerID)
 	defer func() {
+		s.streamMgr.AddStream(m.messageID, stream)
 		if err := stream.Close(); err != nil {
 			s.logger.Error().Err(err).Msg("fail to close stream")
 		}
@@ -203,13 +206,13 @@ func (s *SignatureNotifier) BroadcastFailed(messageID string, peers []peer.ID) e
 func (s *SignatureNotifier) addToNotifiers(n *Notifier) {
 	s.notifierLock.Lock()
 	defer s.notifierLock.Unlock()
-	s.notifiers[n.messageID] = n
+	s.notifiers[n.MessageID] = n
 }
 
 func (s *SignatureNotifier) removeNotifier(n *Notifier) {
 	s.notifierLock.Lock()
 	defer s.notifierLock.Unlock()
-	delete(s.notifiers, n.messageID)
+	delete(s.notifiers, n.MessageID)
 }
 
 // WaitForSignature wait until keysign finished and signature is available
@@ -229,4 +232,8 @@ func (s *SignatureNotifier) WaitForSignature(messageID string, message []byte, p
 	case <-time.After(timeout):
 		return nil, fmt.Errorf("timeout: didn't receive signature after %s", timeout)
 	}
+}
+
+func (s *SignatureNotifier) ReleaseStream(msgID string) {
+	s.streamMgr.ReleaseStream(msgID)
 }

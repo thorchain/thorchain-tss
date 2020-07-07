@@ -44,10 +44,16 @@ func (t *TssServer) KeySign(req keysign.Request) (keysign.Response, error) {
 	t.p2pCommunication.SetSubscribe(messages.TSSControlMsg, msgID, keySignChannels)
 	t.p2pCommunication.SetSubscribe(messages.TSSTaskDone, msgID, keySignChannels)
 
-	defer t.p2pCommunication.CancelSubscribe(messages.TSSKeySignMsg, msgID)
-	defer t.p2pCommunication.CancelSubscribe(messages.TSSKeySignVerMsg, msgID)
-	defer t.p2pCommunication.CancelSubscribe(messages.TSSControlMsg, msgID)
-	defer t.p2pCommunication.CancelSubscribe(messages.TSSTaskDone, msgID)
+	defer func() {
+		t.p2pCommunication.CancelSubscribe(messages.TSSKeySignMsg, msgID)
+		t.p2pCommunication.CancelSubscribe(messages.TSSKeySignVerMsg, msgID)
+		t.p2pCommunication.CancelSubscribe(messages.TSSControlMsg, msgID)
+		t.p2pCommunication.CancelSubscribe(messages.TSSTaskDone, msgID)
+
+		t.p2pCommunication.ReleaseStream(msgID)
+		t.signatureNotifier.ReleaseStream(msgID)
+		t.partyCoordinator.ReleaseStream(msgID)
+	}()
 
 	localStateItem, err := t.stateManager.GetLocalState(req.PoolPubKey)
 	if err != nil {

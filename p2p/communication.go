@@ -54,6 +54,7 @@ type Communication struct {
 	streamCount      int64
 	BroadcastMsgChan chan *messages.BroadcastMsgChan
 	externalAddr     maddr.Multiaddr
+	streamMgr        *StreamMgr
 }
 
 // NewCommunication create a new instance of Communication
@@ -81,6 +82,7 @@ func NewCommunication(rendezvous string, bootstrapPeers []maddr.Multiaddr, port 
 		streamCount:      0,
 		BroadcastMsgChan: make(chan *messages.BroadcastMsgChan, 1024),
 		externalAddr:     externalAddr,
+		streamMgr:        NewStreamMgr(),
 	}, nil
 }
 
@@ -95,29 +97,29 @@ func (c *Communication) GetLocalPeerID() string {
 }
 
 // Broadcast message to Peers
-func (c *Communication) Broadcast(peers []peer.ID, msg []byte) {
+func (c *Communication) Broadcast(peers []peer.ID, msg []byte, msgID string) {
 	if len(peers) == 0 {
 		return
 	}
 	// try to discover all peers and then broadcast the messages
 	c.wg.Add(1)
-	go c.broadcastToPeers(peers, msg)
+	go c.broadcastToPeers(peers, msg, msgID)
 }
 
-func (c *Communication) broadcastToPeers(peers []peer.ID, msg []byte) {
+func (c *Communication) broadcastToPeers(peers []peer.ID, msg []byte, msgID string) {
 	defer c.wg.Done()
 	defer func() {
 		c.logger.Debug().Msgf("finished sending message to peer(%v)", peers)
 	}()
 	for _, p := range peers {
-		if err := c.writeToStream(p, msg); nil != err {
+		if err := c.writeToStream(p, msg, msgID); nil != err {
 			c.logger.Error().Err(err).Msg("fail to write to stream")
 		}
 	}
 }
 
-func (c *Communication) writeToStream(pID peer.ID, msg []byte) error {
-	// don't send to ourself
+func (c *Communication) writeToStream(pID peer.ID, msg []byte, msgID string) error {
+	// don't send to ourselves
 	if pID == c.host.ID() {
 		return nil
 	}
@@ -130,6 +132,7 @@ func (c *Communication) writeToStream(pID peer.ID, msg []byte) error {
 	}
 
 	defer func() {
+		c.streamMgr.AddStream(msgID, stream)
 		if err := stream.Close(); nil != err {
 			c.logger.Error().Err(err).Msgf("fail to reset stream to peer(%s)", pID)
 		}
@@ -143,7 +146,7 @@ func (c *Communication) readFromStream(stream network.Stream) {
 	peerID := stream.Conn().RemotePeer().String()
 	c.logger.Debug().Msgf("reading from stream of peer: %s", peerID)
 	defer func() {
-		if err := stream.Close(); nil != err {
+		if err := stream.Reset(); nil != err {
 			c.logger.Error().Err(err).Msg("fail to close stream")
 		}
 	}()
@@ -411,10 +414,14 @@ func (c *Communication) ProcessBroadcast() {
 				continue
 			}
 			c.logger.Debug().Msgf("broadcast message %s to %+v", msg.WrappedMessage, msg.PeersID)
-			c.Broadcast(msg.PeersID, wrappedMsgBytes)
+			c.Broadcast(msg.PeersID, wrappedMsgBytes, msg.WrappedMessage.MsgID)
 
 		case <-c.stopChan:
 			return
 		}
 	}
+}
+
+func (c *Communication) ReleaseStream(msgID string) {
+	c.streamMgr.ReleaseStream(msgID)
 }
