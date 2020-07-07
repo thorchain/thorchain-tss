@@ -143,19 +143,17 @@ func (t *TssServer) Stop() {
 	t.partyCoordinator.Stop()
 	log.Info().Msg("The Tss and p2p server has been stopped successfully")
 }
-
 func (t *TssServer) requestToMsgId(request interface{}) (string, error) {
 	var dat []byte
-	var keys []string
 	switch value := request.(type) {
 	case keygen.Request:
-		keys = value.Keys
 		keyAccumulation := ""
+		keys := value.Keys
 		sort.Strings(keys)
 		for _, el := range keys {
 			keyAccumulation += el
 		}
-		dat = append(dat, []byte(keyAccumulation)...)
+		dat = []byte(keyAccumulation)
 	case keysign.Request:
 		msgToSign, err := base64.StdEncoding.DecodeString(value.Message)
 		if err != nil {
@@ -167,7 +165,6 @@ func (t *TssServer) requestToMsgId(request interface{}) (string, error) {
 		t.logger.Error().Msg("unknown request type")
 		return "", errors.New("unknown request type")
 	}
-
 	return common.MsgToHashString(dat)
 }
 
