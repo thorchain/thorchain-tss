@@ -9,6 +9,8 @@ import (
 	bcrypto "github.com/binance-chain/tss-lib/crypto"
 	bkg "github.com/binance-chain/tss-lib/ecdsa/keygen"
 	btss "github.com/binance-chain/tss-lib/tss"
+	"github.com/libp2p/go-libp2p-core/network"
+	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	tcrypto "github.com/tendermint/tendermint/crypto"
@@ -31,6 +33,7 @@ type TssKeyGen struct {
 	stateManager    storage.LocalStateManager
 	commStopChan    chan struct{}
 	p2pComm         *p2p.Communication
+	peerStream      map[peer.ID]network.Stream
 }
 
 func NewTssKeyGen(localP2PID string,
@@ -42,19 +45,20 @@ func NewTssKeyGen(localP2PID string,
 	msgID string,
 	stateManager storage.LocalStateManager,
 	privateKey tcrypto.PrivKey,
-	p2pComm *p2p.Communication) *TssKeyGen {
+	p2pComm *p2p.Communication, peerStream map[peer.ID]network.Stream) *TssKeyGen {
 	return &TssKeyGen{
 		logger: log.With().
 			Str("module", "keygen").
 			Str("msgID", msgID).Logger(),
 		localNodePubKey: localNodePubKey,
 		preParams:       preParam,
-		tssCommonStruct: common.NewTssCommon(localP2PID, broadcastChan, conf, msgID, privateKey),
+		tssCommonStruct: common.NewTssCommon(localP2PID, broadcastChan, conf, msgID, privateKey, peerStream),
 		stopChan:        stopChan,
 		localParty:      nil,
 		stateManager:    stateManager,
 		commStopChan:    make(chan struct{}),
 		p2pComm:         p2pComm,
+		peerStream:      peerStream,
 	}
 }
 

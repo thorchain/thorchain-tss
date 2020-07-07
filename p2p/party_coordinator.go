@@ -11,6 +11,7 @@ import (
 	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/network"
 	"github.com/libp2p/go-libp2p-core/peer"
+	"github.com/libp2p/go-libp2p-core/protocol"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 
@@ -42,14 +43,14 @@ func NewPartyCoordinator(host host.Host, timeout time.Duration) *PartyCoordinato
 		peersGroup:         make(map[string]*PeerStatus),
 		joinPartyGroupLock: &sync.Mutex{},
 	}
-	host.SetStreamHandler(joinPartyProtocol, pc.HandleStream)
+	host.SetStreamHandler(JoinPartyProtocol, pc.HandleStream)
 	return pc
 }
 
 // Stop the PartyCoordinator rune
 func (pc *PartyCoordinator) Stop() {
 	defer pc.logger.Info().Msg("stop party coordinator")
-	pc.host.RemoveStreamHandler(joinPartyProtocol)
+	pc.host.RemoveStreamHandler(JoinPartyProtocol)
 	close(pc.stopChan)
 }
 
@@ -121,64 +122,34 @@ func (pc *PartyCoordinator) getPeerIDs(ids []string) ([]peer.ID, error) {
 	return result, nil
 }
 
-func (pc *PartyCoordinator) sendRequestToAll(msg *messages.JoinPartyRequest, peers []peer.ID) {
+func (pc *PartyCoordinator) sendRequestToAll(msg *messages.JoinPartyRequest, peers []peer.ID, peerStreams map[peer.ID]network.Stream) error {
 	var wg sync.WaitGroup
+	var sendError error
 	wg.Add(len(peers))
 	for _, el := range peers {
-		go func(peer peer.ID) {
+		pStream := peerStreams[el]
+		go func(peer peer.ID, s network.Stream) {
 			defer wg.Done()
-			if err := pc.sendRequestToPeer(msg, peer); err != nil {
-				pc.logger.Error().Err(err).Msg("error in send the join party request to peer")
+			if err := pc.sendRequestToPeer(msg, peer, pStream); err != nil {
+				pc.logger.Error().Err(err).Msgf("error in send the join party request to peer %s", peer.String())
+				sendError = err
+				return
 			}
-		}(el)
+		}(el, pStream)
 	}
 	wg.Wait()
+	return sendError
 }
 
-func (pc *PartyCoordinator) sendRequestToPeer(msg *messages.JoinPartyRequest, remotePeer peer.ID) error {
+func (pc *PartyCoordinator) sendRequestToPeer(msg *messages.JoinPartyRequest, remotePeer peer.ID, pStream network.Stream) error {
 	msgBuf, err := proto.Marshal(msg)
 	if err != nil {
 		return fmt.Errorf("fail to marshal msg to bytes: %w", err)
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*4)
-	defer cancel()
-	var stream network.Stream
-	var streamError error
-	streamGetChan := make(chan struct{})
-	go func() {
-		defer close(streamGetChan)
-
-		pc.logger.Info().Msgf("try to open stream to (%s) ", remotePeer)
-		stream, err = pc.host.NewStream(ctx, remotePeer, joinPartyProtocol)
-		if err != nil {
-			streamError = fmt.Errorf("fail to create stream to peer(%s):%w", remotePeer, err)
-		}
-	}()
-
-	select {
-	case <-streamGetChan:
-		if streamError != nil {
-			pc.logger.Error().Err(streamError).Msg("fail to open stream")
-			return streamError
-		}
-	case <-ctx.Done():
-		pc.logger.Error().Err(ctx.Err()).Msg("fail to open stream with context timeout")
-		// we reset the whole connection of this peer
-		err := pc.host.Network().ClosePeer(remotePeer)
-		pc.logger.Error().Err(err).Msgf("fail to clolse the connection to peer %s", remotePeer.String())
-		return ctx.Err()
-	}
-
-	defer func() {
-		if err := stream.Close(); err != nil {
-			pc.logger.Error().Err(err).Msg("fail to close stream")
-		}
-	}()
 	pc.logger.Info().Msgf("open stream to (%s) successfully", remotePeer)
-
-	err = WriteStreamWithBuffer(msgBuf, stream)
+	err = WriteStreamWithBuffer(msgBuf, pStream)
 	if err != nil {
-		if errReset := stream.Reset(); errReset != nil {
+		if errReset := pStream.Reset(); errReset != nil {
 			return errReset
 		}
 		return fmt.Errorf("fail to write message to stream:%w", err)
@@ -188,7 +159,7 @@ func (pc *PartyCoordinator) sendRequestToPeer(msg *messages.JoinPartyRequest, re
 }
 
 // JoinPartyWithRetry this method provide the functionality to join party with retry and back off
-func (pc *PartyCoordinator) JoinPartyWithRetry(msg *messages.JoinPartyRequest, peers []string) ([]peer.ID, error) {
+func (pc *PartyCoordinator) JoinPartyWithRetry(msg *messages.JoinPartyRequest, peers []string, peerStreams map[peer.ID]network.Stream) ([]peer.ID, error) {
 	peerGroup, err := pc.createJoinPartyGroups(msg.ID, peers)
 	if err != nil {
 		pc.logger.Error().Err(err).Msg("fail to create the join party group")
@@ -206,7 +177,9 @@ func (pc *PartyCoordinator) JoinPartyWithRetry(msg *messages.JoinPartyRequest, p
 			case <-done:
 				return
 			default:
-				pc.sendRequestToAll(msg, offline)
+				if err := pc.sendRequestToAll(msg, offline, peerStreams); err != nil {
+					pc.logger.Error().Err(err).Msg("fail to send join party to some peers")
+				}
 			}
 			time.Sleep(time.Second)
 		}
@@ -233,11 +206,52 @@ func (pc *PartyCoordinator) JoinPartyWithRetry(msg *messages.JoinPartyRequest, p
 
 	wg.Wait()
 	onlinePeers, _ := peerGroup.getPeersStatus()
-	pc.sendRequestToAll(msg, onlinePeers)
+	if err := pc.sendRequestToAll(msg, onlinePeers, peerStreams); err != nil {
+		pc.logger.Error().Err(err).Msg("fail to send join pary to some peers")
+	}
 	// we always set ourselves as online
 	onlinePeers = append(onlinePeers, pc.host.ID())
 	if len(onlinePeers) == len(peers) {
 		return onlinePeers, nil
 	}
 	return onlinePeers, errJoinPartyTimeout
+}
+
+func (c *Communication) GetStream(remotePeer peer.ID, p protocol.ID) (network.Stream, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*4)
+	defer cancel()
+	var stream network.Stream
+	var streamError error
+	var err error
+	streamGetChan := make(chan struct{})
+	go func() {
+		defer close(streamGetChan)
+		for i := 0; i < 5; i++ {
+			stream, err = c.host.NewStream(ctx, remotePeer, p)
+			if err != nil {
+				streamError = fmt.Errorf("fail to create stream to peer(%s):%w", remotePeer, err)
+				c.logger.Error().Err(err).Msgf("fail to create stream with retry %d", i)
+				time.Sleep(time.Second)
+				fmt.Printf("\nwe continue......\n")
+				continue
+			}
+			break
+		}
+	}()
+
+	select {
+	case <-streamGetChan:
+		if streamError != nil {
+			c.logger.Error().Err(streamError).Msg("fail to open stream")
+			return nil, streamError
+		}
+	case <-ctx.Done():
+		c.logger.Error().Err(ctx.Err()).Msg("fail to open stream with context timeout")
+		// we reset the whole connection of this peer
+		err := c.host.Network().ClosePeer(remotePeer)
+		c.logger.Error().Err(err).Msgf("fail to clolse the connection to peer %s", remotePeer.String())
+		return nil, ctx.Err()
+	}
+
+	return stream, nil
 }

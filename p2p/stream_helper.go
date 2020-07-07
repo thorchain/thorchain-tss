@@ -8,6 +8,9 @@ import (
 	"time"
 
 	"github.com/libp2p/go-libp2p-core/network"
+	"github.com/libp2p/go-libp2p-core/peer"
+	"github.com/libp2p/go-libp2p-core/protocol"
+	"github.com/rs/zerolog"
 )
 
 const (
@@ -79,4 +82,18 @@ func WriteStreamWithBuffer(msg []byte, stream network.Stream) error {
 		return fmt.Errorf("short write, we would like to write: %d, however we only write: %d", length, n)
 	}
 	return nil
+}
+
+func ReleaseStream(l *zerolog.Logger, s map[peer.ID]network.Stream) {
+	for pid, el := range s {
+		if err := el.Reset(); err != nil {
+			l.Error().Err(err).Msgf("fail to release the stream of peer %s", pid.String())
+		}
+	}
+}
+
+func SetStreamsProtocol(s map[peer.ID]network.Stream, proto protocol.ID) {
+	for _, el := range s {
+		el.SetProtocol(proto)
+	}
 }

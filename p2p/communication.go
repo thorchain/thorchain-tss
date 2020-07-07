@@ -24,7 +24,7 @@ import (
 	"gitlab.com/thorchain/tss/go-tss/messages"
 )
 
-var joinPartyProtocol protocol.ID = "/p2p/join-party"
+var JoinPartyProtocol protocol.ID = "/p2p/join-party"
 
 // TSSProtocolID protocol id used for tss
 var TSSProtocolID protocol.ID = "/p2p/tss"
@@ -95,48 +95,28 @@ func (c *Communication) GetLocalPeerID() string {
 }
 
 // Broadcast message to Peers
-func (c *Communication) Broadcast(peers []peer.ID, msg []byte) {
+func (c *Communication) Broadcast(peers []peer.ID, msg []byte, peerStream map[peer.ID]network.Stream) {
 	if len(peers) == 0 {
 		return
 	}
 	// try to discover all peers and then broadcast the messages
 	c.wg.Add(1)
-	go c.broadcastToPeers(peers, msg)
+
+	go c.broadcastToPeers(peers, msg, peerStream)
+	c.wg.Wait()
 }
 
-func (c *Communication) broadcastToPeers(peers []peer.ID, msg []byte) {
+func (c *Communication) broadcastToPeers(peers []peer.ID, msg []byte, peerStream map[peer.ID]network.Stream) {
 	defer c.wg.Done()
 	defer func() {
 		c.logger.Debug().Msgf("finished sending message to peer(%v)", peers)
 	}()
 	for _, p := range peers {
-		if err := c.writeToStream(p, msg); nil != err {
-			c.logger.Error().Err(err).Msg("fail to write to stream")
+		err := WriteStreamWithBuffer(msg, peerStream[p])
+		if err != nil {
+			c.logger.Error().Err(err).Msgf("fail to write stream to peer %s", p.String())
 		}
 	}
-}
-
-func (c *Communication) writeToStream(pID peer.ID, msg []byte) error {
-	// don't send to ourself
-	if pID == c.host.ID() {
-		return nil
-	}
-	stream, err := c.connectToOnePeer(pID)
-	if err != nil {
-		return fmt.Errorf("fail to open stream to peer(%s): %w", pID, err)
-	}
-	if nil == stream {
-		return nil
-	}
-
-	defer func() {
-		if err := stream.Close(); nil != err {
-			c.logger.Error().Err(err).Msgf("fail to reset stream to peer(%s)", pID)
-		}
-	}()
-	c.logger.Debug().Msgf(">>>writing messages to peer(%s)", pID)
-
-	return WriteStreamWithBuffer(msg, stream)
 }
 
 func (c *Communication) readFromStream(stream network.Stream) {
@@ -411,7 +391,7 @@ func (c *Communication) ProcessBroadcast() {
 				continue
 			}
 			c.logger.Debug().Msgf("broadcast message %s to %+v", msg.WrappedMessage, msg.PeersID)
-			c.Broadcast(msg.PeersID, wrappedMsgBytes)
+			c.Broadcast(msg.PeersID, wrappedMsgBytes, msg.PeerStream)
 
 		case <-c.stopChan:
 			return

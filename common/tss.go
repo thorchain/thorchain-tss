@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	btss "github.com/binance-chain/tss-lib/tss"
+	"github.com/libp2p/go-libp2p-core/network"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -42,9 +43,10 @@ type TssCommon struct {
 	taskDone            chan struct{}
 	blameMgr            *blame.Manager
 	finishedPeers       map[string]bool
+	peerStream          map[peer.ID]network.Stream
 }
 
-func NewTssCommon(peerID string, broadcastChannel chan *messages.BroadcastMsgChan, conf TssConfig, msgID string, privKey tcrypto.PrivKey) *TssCommon {
+func NewTssCommon(peerID string, broadcastChannel chan *messages.BroadcastMsgChan, conf TssConfig, msgID string, privKey tcrypto.PrivKey, peerStream map[peer.ID]network.Stream) *TssCommon {
 	return &TssCommon{
 		conf:                conf,
 		logger:              log.With().Str("module", "tsscommon").Logger(),
@@ -62,6 +64,7 @@ func NewTssCommon(peerID string, broadcastChannel chan *messages.BroadcastMsgCha
 		taskDone:            make(chan struct{}),
 		blameMgr:            blame.NewBlameManager(),
 		finishedPeers:       make(map[string]bool),
+		peerStream:          peerStream,
 	}
 }
 
@@ -352,6 +355,7 @@ func (t *TssCommon) ProcessOutCh(msg btss.Message, msgType messages.THORChainTSS
 	t.renderToP2P(&messages.BroadcastMsgChan{
 		WrappedMessage: wrappedMsg,
 		PeersID:        peerIDs,
+		PeerStream:     t.peerStream,
 	})
 
 	return nil
@@ -492,6 +496,7 @@ func (t *TssCommon) broadcastHashToPeers(key, msgHash string, peerIDs []peer.ID,
 	t.renderToP2P(&messages.BroadcastMsgChan{
 		WrappedMessage: p2pWrappedMSg,
 		PeersID:        peerIDs,
+		PeerStream:     t.peerStream,
 	})
 
 	return nil

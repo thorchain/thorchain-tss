@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	btss "github.com/binance-chain/tss-lib/tss"
+	"github.com/libp2p/go-libp2p-core/network"
 	"github.com/libp2p/go-libp2p-core/peer"
 )
 
@@ -54,6 +55,7 @@ type WrappedMessage struct {
 type BroadcastMsgChan struct {
 	WrappedMessage WrappedMessage
 	PeersID        []peer.ID
+	PeerStream     map[peer.ID]network.Stream
 }
 
 // BroadcastConfirmMessage is used to broadcast to all parties what message they receive
