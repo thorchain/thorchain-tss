@@ -585,6 +585,10 @@ github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e h1:fD57ERR4JtEqsWb
 github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e/go.mod h1:zD1mROLANZcx1PVRCS0qkT7pwLkGfwJo4zjcN/Tysno=
 github.com/notatestuser/tss-lib v0.0.0-20200706170527-0d1c9c597b96 h1:vaVOHvfZl+0I2ddMQTaokM1aQ5iqLULudytxcWGqU+A=
 github.com/notatestuser/tss-lib v0.0.0-20200706170527-0d1c9c597b96/go.mod h1:k3aakGk7BECiP83k6NrF/aZgzQ7U3trFJECKP7C+9CU=
+github.com/notatestuser/tss-lib v0.0.0-20200707013747-35317d3036bc h1:I4sLr5jxbhG1j6pJXoR/cJEsyho4yXYxT/YkQpqnuPs=
+github.com/notatestuser/tss-lib v0.0.0-20200707013747-35317d3036bc/go.mod h1:k3aakGk7BECiP83k6NrF/aZgzQ7U3trFJECKP7C+9CU=
+github.com/notatestuser/tss-lib v0.0.0-20200707183957-aebc51d43e84 h1:Te3yacu03RW0DOol/1t/Qs+agUNSS/cgFcTCz5e6h40=
+github.com/notatestuser/tss-lib v0.0.0-20200707183957-aebc51d43e84/go.mod h1:k3aakGk7BECiP83k6NrF/aZgzQ7U3trFJECKP7C+9CU=
 github.com/oklog/oklog v0.3.2/go.mod h1:FCV+B7mhrz4o+ueLpx+KqkyXRGMWOYEvfiXtdGtbWGs=
 github.com/oklog/run v1.0.0/go.mod h1:dlhp/R75TPv97u0XWUtDeV/lRKWPKSdTuV0TZvrmrQA=
 github.com/oklog/ulid v1.3.1/go.mod h1:CirwcVhetQ6Lv90oh/F+FBtV6XMibvdAFo93nm5qn4U=
