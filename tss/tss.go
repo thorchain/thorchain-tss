@@ -145,26 +145,28 @@ func (t *TssServer) Stop() {
 }
 func (t *TssServer) requestToMsgId(request interface{}) (string, error) {
 	var dat []byte
+	var keys []string
 	switch value := request.(type) {
 	case keygen.Request:
-		keyAccumulation := ""
-		keys := value.Keys
-		sort.Strings(keys)
-		for _, el := range keys {
-			keyAccumulation += el
-		}
-		dat = []byte(keyAccumulation)
+		keys = value.Keys
 	case keysign.Request:
 		msgToSign, err := base64.StdEncoding.DecodeString(value.Message)
 		if err != nil {
 			t.logger.Error().Err(err).Msg("error in decode the keysign req")
 			return "", err
 		}
+		keys = value.SignerPubKeys
 		dat = msgToSign
 	default:
 		t.logger.Error().Msg("unknown request type")
 		return "", errors.New("unknown request type")
 	}
+	keyAccumulation := ""
+	sort.Strings(keys)
+	for _, el := range keys {
+		keyAccumulation += el
+	}
+	dat = append(dat, []byte(keyAccumulation)...)
 	return common.MsgToHashString(dat)
 }
 
