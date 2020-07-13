@@ -1,6 +1,7 @@
 package p2p
 
 import (
+	"bufio"
 	"context"
 	"encoding/json"
 	"errors"
@@ -24,7 +25,7 @@ import (
 	"gitlab.com/thorchain/tss/go-tss/messages"
 )
 
-var joinPartyProtocol protocol.ID = "/p2p/join-party"
+var JoinPartyProtocol protocol.ID = "/p2p/join-party"
 
 // TSSProtocolID protocol id used for tss
 var TSSProtocolID protocol.ID = "/p2p/tss"
@@ -54,7 +55,6 @@ type Communication struct {
 	streamCount      int64
 	BroadcastMsgChan chan *messages.BroadcastMsgChan
 	externalAddr     maddr.Multiaddr
-	streamMgr        *StreamMgr
 }
 
 // NewCommunication create a new instance of Communication
@@ -82,7 +82,6 @@ func NewCommunication(rendezvous string, bootstrapPeers []maddr.Multiaddr, port 
 		streamCount:      0,
 		BroadcastMsgChan: make(chan *messages.BroadcastMsgChan, 1024),
 		externalAddr:     externalAddr,
-		streamMgr:        NewStreamMgr(),
 	}, nil
 }
 
@@ -131,15 +130,9 @@ func (c *Communication) writeToStream(pID peer.ID, msg []byte, msgID string) err
 		return nil
 	}
 
-	defer func() {
-		c.streamMgr.AddStream(msgID, stream)
-		if err := stream.Close(); nil != err {
-			c.logger.Error().Err(err).Msgf("fail to reset stream to peer(%s)", pID)
-		}
-	}()
 	c.logger.Debug().Msgf(">>>writing messages to peer(%s)", pID)
-
-	return WriteStreamWithBuffer(msg, stream)
+	// streamWriter := bufio.NewWriter(stream)
+	return WriteStreamWithBuffer(msg, stream, c.host.ID())
 }
 
 func (c *Communication) readFromStream(stream network.Stream) {
@@ -155,7 +148,8 @@ func (c *Communication) readFromStream(stream network.Stream) {
 	case <-c.stopChan:
 		return
 	default:
-		dataBuf, err := ReadStreamWithBuffer(stream)
+		streamReader := bufio.NewReader(stream)
+		dataBuf, err := ReadStreamWithBuffer(streamReader)
 		if err != nil {
 			c.logger.Error().Err(err).Msgf("fail to read from stream,peerID: %s", peerID)
 			return
@@ -420,8 +414,4 @@ func (c *Communication) ProcessBroadcast() {
 			return
 		}
 	}
-}
-
-func (c *Communication) ReleaseStream(msgID string) {
-	c.streamMgr.ReleaseStream(msgID)
 }

@@ -1,6 +1,7 @@
 package keysign
 
 import (
+	"bufio"
 	"context"
 	"errors"
 	"fmt"
@@ -164,6 +165,7 @@ func (s *SignatureNotifier) sendOneMsgToPeer(m *signatureItem) error {
 		return fmt.Errorf("fail to marshal Keysign Signature to bytes:%w", err)
 	}
 
+	streamWrite := bufio.NewWriter(stream)
 	err = p2p.WriteStreamWithBuffer(ksBuf, stream)
 	if err != nil {
 		if errReset := stream.Reset(); errReset != nil {

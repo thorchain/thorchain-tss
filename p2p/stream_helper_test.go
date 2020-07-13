@@ -1,6 +1,7 @@
 package p2p
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/binary"
 	"errors"
@@ -9,7 +10,6 @@ import (
 
 	"github.com/libp2p/go-libp2p-core/network"
 	"github.com/libp2p/go-libp2p-core/protocol"
-	"github.com/magiconair/properties/assert"
 )
 
 const testProtocolID protocol.ID = "/p2p/test-stream"
@@ -147,7 +147,8 @@ func TestReadLength(t *testing.T) {
 		ApplyDeadline = true
 		t.Run(tc.name, func(st *testing.T) {
 			stream := tc.streamProvider()
-			l, err := ReadStreamWithBuffer(stream)
+			streamReader := bufio.NewReader(stream)
+			l, err := ReadStreamWithBuffer(streamReader)
 			if tc.expectError && err == nil {
 				st.Errorf("expecting error , however got none")
 				st.FailNow()
@@ -176,7 +177,9 @@ func TestReadPayload(t *testing.T) {
 			streamProvider: func() *MockNetworkStream {
 				stream := NewMockNetworkStream()
 				input := []byte("hello world")
-				err := WriteStreamWithBuffer(input, stream)
+
+				// streamWrite := bufio.NewWriter(stream)
+				err := WriteStreamWithBuffer(input, stream, "")
 				if err != nil {
 					t.Errorf("fail to write the data to stream")
 					t.FailNow()
@@ -191,7 +194,8 @@ func TestReadPayload(t *testing.T) {
 		ApplyDeadline = true
 		t.Run(tc.name, func(st *testing.T) {
 			stream := tc.streamProvider()
-			l, err := ReadStreamWithBuffer(stream)
+			streamReader := bufio.NewReader(stream)
+			l, err := ReadStreamWithBuffer(streamReader)
 			if err != nil {
 				st.Errorf("fail to read length:%s", err)
 				st.FailNow()
@@ -211,27 +215,4 @@ func TestReadPayload(t *testing.T) {
 			}
 		})
 	}
-}
-
-func TestStreamManager(t *testing.T) {
-	streamMgr := NewStreamMgr()
-	stream := NewMockNetworkStream()
-
-	streamMgr.AddStream("1", nil)
-	assert.Equal(t, len(streamMgr.unusedStreams), 0)
-	streamMgr.AddStream("1", stream)
-	streamMgr.AddStream("2", stream)
-	streamMgr.AddStream("3", stream)
-	streamMgr.ReleaseStream("1")
-	_, ok := streamMgr.unusedStreams["2"]
-	assert.Equal(t, ok, true)
-	_, ok = streamMgr.unusedStreams["3"]
-	assert.Equal(t, ok, true)
-	streamMgr.ReleaseStream("2")
-	_, ok = streamMgr.unusedStreams["2"]
-	assert.Equal(t, ok, false)
-	streamMgr.ReleaseStream("3")
-	assert.Equal(t, len(streamMgr.unusedStreams), 0)
-	streamMgr.ReleaseStream("3")
-	assert.Equal(t, len(streamMgr.unusedStreams), 0)
 }

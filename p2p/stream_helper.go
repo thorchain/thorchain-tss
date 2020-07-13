@@ -2,15 +2,18 @@ package p2p
 
 import (
 	"bufio"
+	"context"
 	"encoding/binary"
 	"fmt"
 	"io"
 	"sync"
 	"time"
 
+	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/network"
+	"github.com/libp2p/go-libp2p-core/peer"
+	"github.com/libp2p/go-libp2p-core/protocol"
 	"github.com/rs/zerolog"
-	"github.com/rs/zerolog/log"
 )
 
 const (
@@ -24,64 +27,8 @@ const (
 // the reason being the p2p network , mocknet, mock stream doesn't support SetReadDeadline ,SetWriteDeadline feature
 var ApplyDeadline = true
 
-type StreamMgr struct {
-	unusedStreams map[string][]network.Stream
-	streamLocker  *sync.RWMutex
-	logger        zerolog.Logger
-}
-
-func NewStreamMgr() *StreamMgr {
-	return &StreamMgr{
-		unusedStreams: make(map[string][]network.Stream),
-		streamLocker:  &sync.RWMutex{},
-		logger:        log.With().Str("module", "communication").Logger(),
-	}
-}
-
-func (sm *StreamMgr) ReleaseStream(msgID string) {
-	sm.streamLocker.RLock()
-	entries, ok := sm.unusedStreams[msgID]
-	sm.streamLocker.RUnlock()
-	if ok {
-		for _, el := range entries {
-			err := el.Reset()
-			if err != nil {
-				sm.logger.Error().Err(err).Msg("fail to reset the stream,skip it")
-			}
-		}
-		sm.streamLocker.Lock()
-		delete(sm.unusedStreams, msgID)
-		sm.streamLocker.Unlock()
-	}
-}
-
-func (sm *StreamMgr) AddStream(msgID string, stream network.Stream) {
-	if stream == nil {
-		return
-	}
-	sm.streamLocker.Lock()
-	defer sm.streamLocker.Unlock()
-	entries, ok := sm.unusedStreams[msgID]
-	if !ok {
-		entries := []network.Stream{stream}
-		sm.unusedStreams[msgID] = entries
-	} else {
-		entries = append(entries, stream)
-		sm.unusedStreams[msgID] = entries
-	}
-}
-
 // ReadStreamWithBuffer read data from the given stream
-func ReadStreamWithBuffer(stream network.Stream) ([]byte, error) {
-	if ApplyDeadline {
-		if err := stream.SetReadDeadline(time.Now().Add(TimeoutReadPayload)); nil != err {
-			if errReset := stream.Reset(); errReset != nil {
-				return nil, errReset
-			}
-			return nil, err
-		}
-	}
-	streamReader := bufio.NewReader(stream)
+func ReadStreamWithBuffer(streamReader *bufio.Reader) ([]byte, error) {
 	lengthBytes := make([]byte, LengthHeader)
 	n, err := io.ReadFull(streamReader, lengthBytes)
 	if n != LengthHeader || err != nil {
@@ -89,9 +36,6 @@ func ReadStreamWithBuffer(stream network.Stream) ([]byte, error) {
 	}
 	length := binary.LittleEndian.Uint32(lengthBytes)
 	if length > MaxPayload {
-		if errReset := stream.Reset(); errReset != nil {
-			return nil, fmt.Errorf("fail to reset stream: %w", err)
-		}
 		return nil, fmt.Errorf("payload length:%d exceed max payload length:%d", length, MaxPayload)
 	}
 	dataBuf := make([]byte, length)
@@ -103,7 +47,7 @@ func ReadStreamWithBuffer(stream network.Stream) ([]byte, error) {
 }
 
 // WriteStreamWithBuffer write the message to stream
-func WriteStreamWithBuffer(msg []byte, stream network.Stream) error {
+func WriteStreamWithBuffer(msg []byte, stream network.Stream, localPeer peer.ID) error {
 	length := uint32(len(msg))
 	lengthBytes := make([]byte, LengthHeader)
 	binary.LittleEndian.PutUint32(lengthBytes, length)
@@ -128,5 +72,62 @@ func WriteStreamWithBuffer(msg []byte, stream network.Stream) error {
 	if uint32(n) != length || err != nil {
 		return fmt.Errorf("short write, we would like to write: %d, however we only write: %d", length, n)
 	}
+
 	return nil
+}
+
+func ReleaseStream(l *zerolog.Logger, s *sync.Map) {
+	s.Range(func(k, v interface{}) bool {
+		el := v.(network.Stream)
+		pid := k.(peer.ID)
+		if err := el.Reset(); err != nil {
+			l.Error().Err(err).Msgf("fail to release the stream of peer %s", pid.String())
+		}
+		return true
+	})
+}
+
+func SetStreamsProtocol(s map[peer.ID]network.Stream, proto protocol.ID) {
+	for _, el := range s {
+		el.SetProtocol(proto)
+	}
+}
+
+func GetStream(l *zerolog.Logger, h host.Host, remotePeer peer.ID, p protocol.ID) (network.Stream, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*4)
+	defer cancel()
+	var stream network.Stream
+	var streamError error
+	var err error
+	streamGetChan := make(chan struct{})
+	go func() {
+		defer close(streamGetChan)
+		for i := 0; i < 5; i++ {
+			stream, err = h.NewStream(ctx, remotePeer, p)
+			if err != nil {
+				streamError = fmt.Errorf("fail to create stream to peer(%s):%w", remotePeer, err)
+				l.Error().Err(err).Msgf("fail to create stream with retry %d", i)
+				time.Sleep(time.Second)
+				fmt.Printf("\nwe continue......\n")
+				continue
+			}
+			break
+		}
+	}()
+
+	select {
+	case <-streamGetChan:
+		if streamError != nil {
+			l.Error().Err(streamError).Msg("fail to open stream")
+			return nil, streamError
+		}
+	case <-ctx.Done():
+		l.Error().Err(ctx.Err()).Msg("fail to open stream with context timeout")
+		// we reset the whole connection of this peer
+		err := h.Network().ClosePeer(remotePeer)
+		l.Error().Err(err).Msgf("fail to clolse the connection to peer %s", remotePeer.String())
+		return nil, ctx.Err()
+	}
+
+	return stream, nil
 }
