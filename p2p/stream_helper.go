@@ -47,19 +47,11 @@ func ReadStreamWithBuffer(streamReader *bufio.Reader) ([]byte, error) {
 }
 
 // WriteStreamWithBuffer write the message to stream
-func WriteStreamWithBuffer(msg []byte, stream network.Stream, localPeer peer.ID) error {
+func WriteStreamWithBuffer(msg []byte, streamWrite *bufio.Writer, localPeer peer.ID) error {
 	length := uint32(len(msg))
 	lengthBytes := make([]byte, LengthHeader)
 	binary.LittleEndian.PutUint32(lengthBytes, length)
-	if ApplyDeadline {
-		if err := stream.SetWriteDeadline(time.Now().Add(TimeoutWritePayload)); nil != err {
-			if errReset := stream.Reset(); errReset != nil {
-				return errReset
-			}
-			return err
-		}
-	}
-	streamWrite := bufio.NewWriter(stream)
+
 	n, err := streamWrite.Write(lengthBytes)
 	if n != LengthHeader || err != nil {
 		return fmt.Errorf("fail to write head: %w", err)

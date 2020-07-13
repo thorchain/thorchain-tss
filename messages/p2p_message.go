@@ -2,6 +2,7 @@ package messages
 
 import (
 	"fmt"
+	"sync"
 
 	btss "github.com/binance-chain/tss-lib/tss"
 	"github.com/libp2p/go-libp2p-core/peer"
@@ -52,6 +53,7 @@ type WrappedMessage struct {
 
 // BroadcastMsgChan is the channel structure for keygen/keysign submit message to p2p network
 type BroadcastMsgChan struct {
+	Streams        *sync.Map
 	WrappedMessage WrappedMessage
 	PeersID        []peer.ID
 }

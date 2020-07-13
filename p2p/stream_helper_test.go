@@ -103,20 +103,6 @@ func TestReadLength(t *testing.T) {
 			},
 		},
 		{
-			name:           "fail to set read dead line should return an error",
-			expectedLength: 1024,
-			expectError:    true,
-			streamProvider: func() network.Stream {
-				s := NewMockNetworkStream()
-				s.errSetReadDeadLine = true
-				buf := make([]byte, LengthHeader)
-				binary.LittleEndian.PutUint32(buf, 1024)
-				s.Buffer.Write(buf)
-				s.Buffer.Write(bytes.Repeat([]byte("a"), 1024))
-				return s
-			},
-		},
-		{
 			name:           "read exactly the given length of data",
 			expectedLength: 1024,
 			expectError:    false,
@@ -178,8 +164,18 @@ func TestReadPayload(t *testing.T) {
 				stream := NewMockNetworkStream()
 				input := []byte("hello world")
 
+				if ApplyDeadline {
+					if err := stream.SetWriteDeadline(time.Now().Add(TimeoutWritePayload)); nil != err {
+						if errReset := stream.Reset(); errReset != nil {
+							return nil
+						}
+						return nil
+					}
+				}
+				streamWrite := bufio.NewWriter(stream)
+
 				// streamWrite := bufio.NewWriter(stream)
-				err := WriteStreamWithBuffer(input, stream, "")
+				err := WriteStreamWithBuffer(input, streamWrite, "")
 				if err != nil {
 					t.Errorf("fail to write the data to stream")
 					t.FailNow()

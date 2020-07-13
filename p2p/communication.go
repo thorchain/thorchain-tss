@@ -96,7 +96,7 @@ func (c *Communication) GetLocalPeerID() string {
 }
 
 // Broadcast message to Peers
-func (c *Communication) Broadcast(peers []peer.ID, msg []byte, msgID string) {
+func (c *Communication) Broadcast(peers []peer.ID, msg []byte, msgID string, streams *sync.Map) {
 	if len(peers) == 0 {
 		return
 	}
@@ -131,8 +131,16 @@ func (c *Communication) writeToStream(pID peer.ID, msg []byte, msgID string) err
 	}
 
 	c.logger.Debug().Msgf(">>>writing messages to peer(%s)", pID)
-	// streamWriter := bufio.NewWriter(stream)
-	return WriteStreamWithBuffer(msg, stream, c.host.ID())
+	if ApplyDeadline {
+		if err := stream.SetWriteDeadline(time.Now().Add(TimeoutWritePayload)); nil != err {
+			if errReset := stream.Reset(); errReset != nil {
+				return err
+			}
+			return err
+		}
+	}
+	streamWrite := bufio.NewWriter(stream)
+	return WriteStreamWithBuffer(msg, streamWrite, c.host.ID())
 }
 
 func (c *Communication) readFromStream(stream network.Stream) {
@@ -408,7 +416,7 @@ func (c *Communication) ProcessBroadcast() {
 				continue
 			}
 			c.logger.Debug().Msgf("broadcast message %s to %+v", msg.WrappedMessage, msg.PeersID)
-			c.Broadcast(msg.PeersID, wrappedMsgBytes, msg.WrappedMessage.MsgID)
+			c.Broadcast(msg.PeersID, wrappedMsgBytes, msg.WrappedMessage.MsgID, msg.Streams)
 
 		case <-c.stopChan:
 			return

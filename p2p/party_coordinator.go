@@ -132,6 +132,7 @@ func (pc *PartyCoordinator) getPeerIDs(ids []string) ([]peer.ID, error) {
 func (pc *PartyCoordinator) sendRequestToAll(msg *messages.JoinPartyRequest, peers []peer.ID, peerStreams *sync.Map) error {
 	var wg sync.WaitGroup
 	var sendError error
+
 	for _, el := range peers {
 		if el == pc.host.ID() {
 			continue
@@ -141,6 +142,7 @@ func (pc *PartyCoordinator) sendRequestToAll(msg *messages.JoinPartyRequest, pee
 			pc.logger.Error().Msgf("%s cannot find the stream to the peer %s", pc.host.ID(), el.String())
 			continue
 		}
+
 		wg.Add(1)
 		go func(peer peer.ID, s network.Stream) {
 			defer wg.Done()
@@ -165,7 +167,16 @@ func (pc *PartyCoordinator) sendRequestToPeer(msg *messages.JoinPartyRequest, lo
 	if err != nil {
 		return fmt.Errorf("fail to marshal msg to bytes: %w", err)
 	}
-	err = WriteStreamWithBuffer(msgBuf, pStream, localPeer)
+	if ApplyDeadline {
+		if err := pStream.SetWriteDeadline(time.Now().Add(TimeoutWritePayload)); nil != err {
+			if errReset := pStream.Reset(); errReset != nil {
+				return errReset
+			}
+			return err
+		}
+	}
+	streamWrite := bufio.NewWriter(pStream)
+	err = WriteStreamWithBuffer(msgBuf, streamWrite, localPeer)
 	if err != nil {
 		if errReset := pStream.Reset(); errReset != nil {
 			return errReset
@@ -212,7 +223,6 @@ func (pc *PartyCoordinator) JoinPartyWithRetry(msg *messages.JoinPartyRequest, p
 				pc.logger.Info().Msgf("%s we have found the new peer", pc.host.ID())
 				if peerGroup.getCoordinationStatus() {
 					close(done)
-					fmt.Printf("done-------------%s\n", pc.host.ID())
 					return
 				}
 			case <-time.After(pc.timeout):
@@ -225,14 +235,12 @@ func (pc *PartyCoordinator) JoinPartyWithRetry(msg *messages.JoinPartyRequest, p
 	wg.Wait()
 	onlinePeers, _ := peerGroup.getPeersStatus()
 
-	fmt.Printf("we %s last send######\n", pc.host.ID())
 	if err := pc.sendRequestToAll(msg, onlinePeers, peerStreams); err != nil {
 		pc.logger.Error().Err(err).Msg("fail to send join party to some peers")
 	}
 
 	// we always set ourselves as online
 	onlinePeers = append(onlinePeers, pc.host.ID())
-	fmt.Printf("%s--AAEEEEE--%v\n", pc.host.ID(), onlinePeers)
 	if len(onlinePeers) == len(peers) {
 		return onlinePeers, nil
 	}
