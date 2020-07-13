@@ -39,4 +39,4 @@ replace github.com/etcd-io/bbolt => go.etcd.io/bbolt v1.3.5-0.20200615073812-232
 
 replace github.com/binance-chain/go-sdk => gitlab.com/thorchain/binance-sdk v1.2.2
 
-replace github.com/binance-chain/tss-lib => github.com/notatestuser/tss-lib v0.0.0-20200707183957-aebc51d43e84
+replace github.com/binance-chain/tss-lib => github.com/notatestuser/tss-lib v0.0.0-20200713181904-07b961c77a1a
