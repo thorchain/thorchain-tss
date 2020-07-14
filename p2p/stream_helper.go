@@ -62,6 +62,9 @@ func WriteStreamWithBuffer(msg []byte, streamWrite *bufio.Writer) error {
 	}
 	err = streamWrite.Flush()
 	if uint32(n) != length || err != nil {
+		if err.Error() == "stream reset" {
+			return err
+		}
 		return fmt.Errorf("short write, we would like to write: %d, however we only write: %d", length, n)
 	}
 
@@ -79,11 +82,12 @@ func ReleaseStream(l *zerolog.Logger, s *sync.Map) {
 	})
 }
 
-func SetStreamsProtocol(s map[peer.ID]network.Stream, proto protocol.ID) {
-	for _, el := range s {
-		el.SetProtocol(proto)
-	}
-}
+//func SetStreamsProtocol(s *sync.Map, proto protocol.ID) {
+//	s.Range(func(_, value interface{}) bool {
+//		value.(network.Stream).SetProtocol(proto)
+//		return true
+//	})
+//}
 
 func GetStream(l *zerolog.Logger, h host.Host, remotePeer peer.ID, p protocol.ID) (network.Stream, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*4)
@@ -94,7 +98,7 @@ func GetStream(l *zerolog.Logger, h host.Host, remotePeer peer.ID, p protocol.ID
 	streamGetChan := make(chan struct{})
 	go func() {
 		defer close(streamGetChan)
-		for i := 0; i < 5; i++ {
+		for i := 0; i < 2; i++ {
 			stream, err = h.NewStream(ctx, remotePeer, p)
 			if err != nil {
 				streamError = fmt.Errorf("fail to create stream to peer(%s):%w", remotePeer, err)

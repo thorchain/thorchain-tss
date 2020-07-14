@@ -2,7 +2,6 @@ package keysign
 
 import (
 	"bufio"
-	"errors"
 	"fmt"
 	"sync"
 	"time"
@@ -20,8 +19,6 @@ import (
 	"gitlab.com/thorchain/tss/go-tss/p2p"
 )
 
-const signatureNotifiers = 10
-
 var SignatureNotifierProtocol protocol.ID = "/p2p/signatureNotifier"
 
 type signatureItem struct {
@@ -35,11 +32,9 @@ type signatureItem struct {
 type SignatureNotifier struct {
 	logger       zerolog.Logger
 	host         host.Host
-	stopChan     chan struct{}
 	notifierLock *sync.Mutex
 	notifiers    map[string]*Notifier
 	messages     chan *signatureItem
-	wg           *sync.WaitGroup
 }
 
 // NewSignatureNotifier create a new instance of SignatureNotifier
@@ -49,53 +44,54 @@ func NewSignatureNotifier(host host.Host) *SignatureNotifier {
 		host:         host,
 		notifierLock: &sync.Mutex{},
 		notifiers:    make(map[string]*Notifier),
-		stopChan:     make(chan struct{}),
 		messages:     make(chan *signatureItem),
-		wg:           &sync.WaitGroup{},
 	}
 	host.SetStreamHandler(SignatureNotifierProtocol, s.handleStream)
 	return s
 }
 
 func (s *SignatureNotifier) processSignature(stream network.Stream) {
+	defer func() {
+		err := stream.Reset()
+		if err != nil {
+			s.logger.Error().Err(err).Msgf("fail to close reset the stream")
+		}
+	}()
 	remotePeer := stream.Conn().RemotePeer()
 	logger := s.logger.With().Str("remote peer", remotePeer.String()).Logger()
 	streamReader := bufio.NewReader(stream)
-	for {
-		payload, err := p2p.ReadStreamWithBuffer(streamReader)
-		if err != nil {
-			fmt.Printf("------>%v\n", err.Error())
-			logger.Err(err).Msgf("fail to read payload from stream")
+	payload, err := p2p.ReadStreamWithBuffer(streamReader)
+	if err != nil {
+		logger.Err(err).Msgf("fail to read payload from stream")
+		return
+	}
+	var msg messages.KeysignSignature
+	if err := proto.Unmarshal(payload, &msg); err != nil {
+		logger.Err(err).Msg("fail to unmarshal join party request")
+		return
+	}
+	var signature bc.SignatureData
+	if len(msg.Signature) > 0 && msg.KeysignStatus == messages.KeysignSignature_Success {
+		if err := proto.Unmarshal(msg.Signature, &signature); err != nil {
+			logger.Error().Err(err).Msg("fail to unmarshal signature data")
 			return
 		}
-		var msg messages.KeysignSignature
-		if err := proto.Unmarshal(payload, &msg); err != nil {
-			logger.Err(err).Msg("fail to unmarshal join party request")
-			return
-		}
-		var signature bc.SignatureData
-		if len(msg.Signature) > 0 && msg.KeysignStatus == messages.KeysignSignature_Success {
-			if err := proto.Unmarshal(msg.Signature, &signature); err != nil {
-				logger.Error().Err(err).Msg("fail to unmarshal signature data")
-				return
-			}
-		}
-		s.notifierLock.Lock()
-		defer s.notifierLock.Unlock()
-		n, ok := s.notifiers[msg.ID]
-		if !ok {
-			logger.Debug().Msgf("notifier for message id(%s) not exist", msg.ID)
-			return
-		}
-		finished, err := n.ProcessSignature(&signature)
-		if err != nil {
-			logger.Error().Err(err).Msg("fail to update local signature data")
-			return
-		}
-		if finished {
-			delete(s.notifiers, msg.ID)
-			return
-		}
+	}
+	s.notifierLock.Lock()
+	defer s.notifierLock.Unlock()
+	n, ok := s.notifiers[msg.ID]
+	if !ok {
+		logger.Debug().Msgf("notifier for message id(%s) not exist", msg.ID)
+		return
+	}
+	finished, err := n.ProcessSignature(&signature)
+	if err != nil {
+		logger.Error().Err(err).Msg("fail to update local signature data")
+		return
+	}
+	if finished {
+		delete(s.notifiers, msg.ID)
+		return
 	}
 }
 
@@ -103,35 +99,6 @@ func (s *SignatureNotifier) processSignature(stream network.Stream) {
 func (s *SignatureNotifier) handleStream(stream network.Stream) {
 	// todo we need to recycling the stream and release them
 	go s.processSignature(stream)
-}
-
-func (s *SignatureNotifier) Start() {
-	for i := 0; i < signatureNotifiers; i++ {
-		s.wg.Add(1)
-		go s.sendMessageToPeer()
-	}
-}
-
-// Stop the signature notifier
-func (s *SignatureNotifier) Stop() {
-	close(s.stopChan)
-	s.wg.Wait()
-}
-
-func (s *SignatureNotifier) sendMessageToPeer() {
-	s.logger.Debug().Msg("start to send message to peers")
-	defer s.logger.Debug().Msg("stop send message to peers")
-	defer s.wg.Done()
-	for {
-		select {
-		case <-s.stopChan:
-			return
-		case msg := <-s.messages:
-			if err := s.sendOneMsgToPeer(msg); err != nil {
-				s.logger.Error().Err(err).Msgf("fail to send message(%s) to peer:%s", msg.messageID, msg.peerID)
-			}
-		}
-	}
 }
 
 func (s *SignatureNotifier) sendOneMsgToPeer(m *signatureItem) error {
@@ -156,7 +123,19 @@ func (s *SignatureNotifier) sendOneMsgToPeer(m *signatureItem) error {
 	streamWrite := bufio.NewWriter(m.stream)
 	err = p2p.WriteStreamWithBuffer(ksBuf, streamWrite)
 	if err != nil {
+		if err.Error() == "stream reset" {
+			return nil
+		}
+		s.logger.Debug().Msgf("we quit as the receiver quit")
 		return fmt.Errorf("fail to write message to stream:%w", err)
+	}
+	streamRead := bufio.NewReader(m.stream)
+	_, err = p2p.ReadStreamWithBuffer(streamRead)
+	if err != nil {
+		if err.Error() == "error in read the message head stream reset" {
+			return nil
+		}
+		return err
 	}
 	return nil
 }
@@ -167,27 +146,47 @@ func (s *SignatureNotifier) BroadcastSignature(messageID string, sig *bc.Signatu
 }
 
 func (s *SignatureNotifier) broadcastCommon(messageID string, sig *bc.SignatureData, peers []peer.ID, streams *sync.Map) error {
+	var wg sync.WaitGroup
 	for _, p := range peers {
 		if p == s.host.ID() {
 			// don't send the signature to itself
 			continue
 		}
-		stream, ok := streams.Load(p)
+		st, ok := streams.Load(p)
 		if !ok {
 			s.logger.Warn().Msgf("fail to find stream for the peer %s", p.String())
 			continue
 		}
-		select {
-		case s.messages <- &signatureItem{
+		stream := st.(network.Stream)
+		sigItem := signatureItem{
 			messageID:     messageID,
 			peerID:        p,
 			signatureData: sig,
-			stream:        stream.(network.Stream),
-		}:
-		case <-s.stopChan:
-			return nil
+			stream:        stream,
 		}
+		if err := stream.SetWriteDeadline(time.Now().Add(time.Second * 2)); nil != err {
+			return err
+		}
+		if err := stream.SetReadDeadline(time.Now().Add(time.Second * 2)); nil != err {
+			return err
+		}
+		wg.Add(1)
+		go func() {
+			defer func() {
+				err := stream.Reset()
+				if err != nil {
+					s.logger.Error().Err(err).Msgf("fail close reset")
+					return
+				}
+				wg.Done()
+			}()
+			err := s.sendOneMsgToPeer(&sigItem)
+			if err != nil {
+				s.logger.Error().Err(err).Msgf("fail to send signature notification to the peer")
+			}
+		}()
 	}
+	wg.Wait()
 	return nil
 }
 
@@ -220,8 +219,6 @@ func (s *SignatureNotifier) WaitForSignature(messageID string, message []byte, p
 	select {
 	case d := <-n.GetResponseChannel():
 		return d, nil
-	case <-s.stopChan:
-		return nil, errors.New("request to exit")
 	case <-time.After(timeout):
 		return nil, fmt.Errorf("timeout: didn't receive signature after %s", timeout)
 	}

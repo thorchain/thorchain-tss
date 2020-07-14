@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"path"
 	"sort"
 	"strconv"
 	"strings"
@@ -411,9 +412,13 @@ func (s *TssKeysisgnTestSuite) TearDownTest(c *C) {
 		return
 	}
 	time.Sleep(time.Second)
-	for _, item := range s.comms {
+	for i, item := range s.comms {
 		c.Assert(item.Stop(), IsNil)
-		// p2p.ReleaseStream(nil, s.allStreams[item.GetHost().ID()])
+		p2p.ReleaseStream(nil, s.allStreams[item.GetHost().ID()])
+
+		baseHome := path.Join(os.TempDir(), strconv.Itoa(i))
+		filepath := path.Join(baseHome, "address_book.seed")
+		os.RemoveAll(filepath)
 	}
 }
 

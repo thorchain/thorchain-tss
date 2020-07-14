@@ -11,7 +11,6 @@ import (
 
 	bkeygen "github.com/binance-chain/tss-lib/ecdsa/keygen"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	"github.com/libp2p/go-libp2p-core/network"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/libp2p/go-libp2p-peerstore/addr"
 	"github.com/rs/zerolog"
@@ -128,7 +127,6 @@ func NewTss(
 func (t *TssServer) Start() error {
 	log.Info().Msg("Starting the TSS servers")
 	t.Status.Starttime = time.Now()
-	t.signatureNotifier.Start()
 	return nil
 }
 
@@ -140,7 +138,6 @@ func (t *TssServer) Stop() {
 	if err != nil {
 		t.logger.Error().Msgf("error in shutdown the p2p server")
 	}
-	t.signatureNotifier.Stop()
 	t.partyCoordinator.Stop()
 	log.Info().Msg("The Tss and p2p server has been stopped successfully")
 }
@@ -170,7 +167,7 @@ func (t *TssServer) requestToMsgId(request interface{}) (string, error) {
 	return common.MsgToHashString(dat)
 }
 
-func (t *TssServer) joinParty(msgID string, keys []string, peerStream map[peer.ID]network.Stream) ([]peer.ID, error) {
+func (t *TssServer) joinParty(msgID string, keys []string, streams *sync.Map) ([]peer.ID, error) {
 	peerIDs, err := conversion.GetPeerIDsFromPubKeys(keys)
 	if err != nil {
 		return nil, fmt.Errorf("fail to convert pub key to peer id: %w", err)
@@ -179,7 +176,7 @@ func (t *TssServer) joinParty(msgID string, keys []string, peerStream map[peer.I
 	joinPartyReq := &messages.JoinPartyRequest{
 		ID: msgID,
 	}
-	onlinePeers, err := t.partyCoordinator.JoinPartyWithRetry(joinPartyReq, peerIDs, peerStream)
+	onlinePeers, err := t.partyCoordinator.JoinPartyWithRetry(joinPartyReq, peerIDs, streams)
 	return onlinePeers, err
 }
 

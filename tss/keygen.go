@@ -2,9 +2,10 @@ package tss
 
 import (
 	"fmt"
+	"sync"
 	"sync/atomic"
+	"time"
 
-	"github.com/libp2p/go-libp2p-core/network"
 	"github.com/libp2p/go-libp2p-core/peer"
 
 	"gitlab.com/thorchain/tss/go-tss/blame"
@@ -23,7 +24,6 @@ func (t *TssServer) Keygen(req keygen.Request) (keygen.Response, error) {
 	if err != nil {
 		return keygen.Response{}, err
 	}
-	peerStream := make(map[peer.ID]network.Stream)
 
 	keygenInstance := keygen.NewTssKeyGen(
 		t.p2pCommunication.GetLocalPeerID(),
@@ -35,7 +35,7 @@ func (t *TssServer) Keygen(req keygen.Request) (keygen.Response, error) {
 		msgID,
 		t.stateManager,
 		t.privateKey,
-		t.p2pCommunication, peerStream)
+		t.p2pCommunication)
 
 	keygenMsgChannel := keygenInstance.GetTssKeyGenChannels()
 	t.p2pCommunication.SetSubscribe(messages.TSSKeyGenMsg, msgID, keygenMsgChannel)
@@ -54,24 +54,32 @@ func (t *TssServer) Keygen(req keygen.Request) (keygen.Response, error) {
 	if err != nil {
 		return keygen.Response{}, err
 	}
-
+	time.Sleep(time.Second * 3)
+	var streamsJoinParty sync.Map
+	var streamsTss sync.Map
 	for _, el := range peerIDs {
 		pid, err := peer.Decode(el)
-		if el == t.GetLocalPeerID() {
+		if pid == t.p2pCommunication.GetHost().ID() {
 			continue
 		}
 		if err != nil {
 			return keygen.Response{}, fmt.Errorf("fail to decode peer id(%s):%w", el, err)
 		}
-		s, err := t.p2pCommunication.GetStream(pid, p2p.JoinPartyProtocol)
+		s, err := p2p.GetStream(&t.logger, t.p2pCommunication.GetHost(), pid, p2p.JoinPartyProtocol)
 		if err != nil {
 			return keygen.Response{}, fmt.Errorf("fail to get stream for stream (%s):%w", el, err)
 		}
-		peerStream[pid] = s
+		s2, err := p2p.GetStream(&t.logger, t.p2pCommunication.GetHost(), pid, p2p.TSSProtocolID)
+		if err != nil {
+			return keygen.Response{}, fmt.Errorf("fail to get stream for stream (%s):%w", el, err)
+		}
+		streamsJoinParty.Store(pid, s)
+		streamsTss.Store(pid, s2)
 	}
-	defer p2p.ReleaseStream(&t.logger, peerStream)
-
-	onlinePeers, err := t.joinParty(msgID, req.Keys, peerStream)
+	defer p2p.ReleaseStream(&t.logger, &streamsJoinParty)
+	defer p2p.ReleaseStream(&t.logger, &streamsTss)
+	keygenInstance.GetTssCommonStruct().UpdateStreams(&streamsTss)
+	onlinePeers, err := t.joinParty(msgID, req.Keys, &streamsJoinParty)
 	if err != nil {
 		if onlinePeers == nil {
 			t.logger.Error().Err(err).Msg("error before we start join party")
@@ -95,7 +103,6 @@ func (t *TssServer) Keygen(req keygen.Request) (keygen.Response, error) {
 	}
 
 	t.logger.Info().Msg("keygen party formed")
-	p2p.SetStreamsProtocol(peerStream, p2p.TSSProtocolID)
 	// the statistic of keygen only care about Tss it self, even if the
 	// following http response aborts, it still counted as a successful keygen
 	// as the Tss model runs successfully.
