@@ -39,6 +39,10 @@ func (msgType THORChainTSSMessageType) String() string {
 		return "TSSKeyGenVerMsg"
 	case TSSKeySignVerMsg:
 		return "TSSKeySignVerMsg"
+	case TSSTaskDone:
+		return "TssTaskDone"
+	case TSSControlMsg:
+		return "TssControlMsg"
 	default:
 		return "Unknown"
 	}
@@ -53,9 +57,9 @@ type WrappedMessage struct {
 
 // BroadcastMsgChan is the channel structure for keygen/keysign submit message to p2p network
 type BroadcastMsgChan struct {
-	Streams        *sync.Map
 	WrappedMessage WrappedMessage
 	PeersID        []peer.ID
+	Streams        *sync.Map
 }
 
 // BroadcastConfirmMessage is used to broadcast to all parties what message they receive

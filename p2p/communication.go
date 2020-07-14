@@ -100,36 +100,45 @@ func (c *Communication) Broadcast(peers []peer.ID, msg []byte, msgID string, str
 	if len(peers) == 0 {
 		return
 	}
+	if streams == nil {
+		c.logger.Error().Msg("the streams is nil")
+		return
+	}
 	// try to discover all peers and then broadcast the messages
 	c.wg.Add(1)
-	go c.broadcastToPeers(peers, msg, msgID)
+	go c.broadcastToPeers(peers, msg, msgID, streams)
 }
 
-func (c *Communication) broadcastToPeers(peers []peer.ID, msg []byte, msgID string) {
+func (c *Communication) broadcastToPeers(peers []peer.ID, msg []byte, msgID string, streams *sync.Map) {
 	defer c.wg.Done()
 	defer func() {
 		c.logger.Debug().Msgf("finished sending message to peer(%v)", peers)
 	}()
+
+	streams.Range(func(key, value interface{}) bool {
+		return false
+	})
+
 	for _, p := range peers {
-		if err := c.writeToStream(p, msg, msgID); nil != err {
+		stream, ok := streams.Load(p)
+		if !ok {
+			c.logger.Error().Msg("fail to find stream of the given peer")
+			continue
+		}
+		if err := c.writeToStream(p, msg, stream.(network.Stream)); nil != err {
 			c.logger.Error().Err(err).Msg("fail to write to stream")
 		}
 	}
 }
 
-func (c *Communication) writeToStream(pID peer.ID, msg []byte, msgID string) error {
+func (c *Communication) writeToStream(pID peer.ID, msg []byte, stream network.Stream) error {
 	// don't send to ourselves
 	if pID == c.host.ID() {
 		return nil
 	}
-	stream, err := c.connectToOnePeer(pID)
-	if err != nil {
-		return fmt.Errorf("fail to open stream to peer(%s): %w", pID, err)
-	}
 	if nil == stream {
 		return nil
 	}
-
 	c.logger.Debug().Msgf(">>>writing messages to peer(%s)", pID)
 	if ApplyDeadline {
 		if err := stream.SetWriteDeadline(time.Now().Add(TimeoutWritePayload)); nil != err {
@@ -140,53 +149,53 @@ func (c *Communication) writeToStream(pID peer.ID, msg []byte, msgID string) err
 		}
 	}
 	streamWrite := bufio.NewWriter(stream)
-	return WriteStreamWithBuffer(msg, streamWrite, c.host.ID())
+	return WriteStreamWithBuffer(msg, streamWrite)
 }
 
 func (c *Communication) readFromStream(stream network.Stream) {
 	peerID := stream.Conn().RemotePeer().String()
-	c.logger.Debug().Msgf("reading from stream of peer: %s", peerID)
 	defer func() {
 		if err := stream.Reset(); nil != err {
 			c.logger.Error().Err(err).Msg("fail to close stream")
 		}
 	}()
-
-	select {
-	case <-c.stopChan:
-		return
-	default:
-		streamReader := bufio.NewReader(stream)
-		dataBuf, err := ReadStreamWithBuffer(streamReader)
-		if err != nil {
-			c.logger.Error().Err(err).Msgf("fail to read from stream,peerID: %s", peerID)
+	for {
+		select {
+		case <-c.stopChan:
 			return
+		default:
+			streamReader := bufio.NewReader(stream)
+			dataBuf, err := ReadStreamWithBuffer(streamReader)
+			if err != nil {
+				if err.Error() == "error in read the message head stream reset" {
+					c.logger.Debug().Msgf("we release the stream as it is closed(reset)")
+					return
+				}
+				c.logger.Error().Err(err).Msgf("fail to read from stream,peerID: %s", peerID)
+				return
+			}
+			var wrappedMsg messages.WrappedMessage
+			if err := json.Unmarshal(dataBuf, &wrappedMsg); nil != err {
+				c.logger.Error().Err(err).Msg("fail to unmarshal wrapped message bytes")
+				continue
+			}
+			c.logger.Debug().Msgf(">>>>>>>[%s] %s", wrappedMsg.MessageType, string(wrappedMsg.Payload))
+			channel := c.getSubscriber(wrappedMsg.MessageType, wrappedMsg.MsgID)
+			if nil == channel {
+				c.logger.Info().Msgf("no MsgID %s found for this message,type=%s", wrappedMsg.MsgID, wrappedMsg.MessageType)
+				continue
+			}
+			channel <- &Message{
+				PeerID:  stream.Conn().RemotePeer(),
+				Payload: dataBuf,
+			}
 		}
-		var wrappedMsg messages.WrappedMessage
-		if err := json.Unmarshal(dataBuf, &wrappedMsg); nil != err {
-			c.logger.Error().Err(err).Msg("fail to unmarshal wrapped message bytes")
-			return
-		}
-		c.logger.Debug().Msgf(">>>>>>>[%s] %s", wrappedMsg.MessageType, string(wrappedMsg.Payload))
-		channel := c.getSubscriber(wrappedMsg.MessageType, wrappedMsg.MsgID)
-		if nil == channel {
-			c.logger.Info().Msgf("no MsgID %s found for this message", wrappedMsg.MsgID)
-			c.logger.Info().Msgf("no MsgID %s found for this message", wrappedMsg.MessageType)
-			return
-		}
-		channel <- &Message{
-			PeerID:  stream.Conn().RemotePeer(),
-			Payload: dataBuf,
-		}
-
 	}
 }
 
 func (c *Communication) handleStream(stream network.Stream) {
-	peerID := stream.Conn().RemotePeer().String()
-	c.logger.Debug().Msgf("handle stream from peer: %s", peerID)
 	// we will read from that stream
-	c.readFromStream(stream)
+	go c.readFromStream(stream)
 }
 
 func (c *Communication) bootStrapConnectivityCheck() error {

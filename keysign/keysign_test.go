@@ -14,6 +14,7 @@ import (
 	"testing"
 	"time"
 
+	bc "github.com/binance-chain/tss-lib/common"
 	btss "github.com/binance-chain/tss-lib/tss"
 	"github.com/libp2p/go-libp2p-peerstore/addr"
 
@@ -21,7 +22,6 @@ import (
 
 	"gitlab.com/thorchain/tss/go-tss/conversion"
 
-	bc "github.com/binance-chain/tss-lib/common"
 	"github.com/libp2p/go-libp2p-core/peer"
 	maddr "github.com/multiformats/go-multiaddr"
 	tcrypto "github.com/tendermint/tendermint/crypto"
@@ -98,6 +98,7 @@ type TssKeysisgnTestSuite struct {
 	stateMgrs    []storage.LocalStateManager
 	nodePrivKeys []tcrypto.PrivKey
 	targePeers   []peer.ID
+	allStreams   map[peer.ID]*sync.Map
 }
 
 var _ = Suite(&TssKeysisgnTestSuite{})
@@ -160,6 +161,27 @@ func (s *TssKeysisgnTestSuite) SetUpTest(c *C) {
 		}
 		s.stateMgrs[i] = f
 	}
+
+	var peers []peer.ID
+	for _, h := range s.comms {
+		peers = append(peers, h.GetHost().ID())
+	}
+	time.Sleep(time.Second)
+	s.allStreams = make(map[peer.ID]*sync.Map)
+	for _, h := range s.comms {
+		var streams sync.Map
+		for _, pid := range peers {
+			if pid == h.GetHost().ID() {
+				continue
+			}
+			streamLog := log.With().Str("module", "communication").Logger()
+			c.Assert(err, IsNil)
+			s, err := p2p.GetStream(&streamLog, h.GetHost(), pid, p2p.TSSProtocolID)
+			c.Assert(err, IsNil)
+			streams.Store(pid, s)
+		}
+		s.allStreams[h.GetHost().ID()] = &streams
+	}
 }
 
 func (s *TssKeysisgnTestSuite) TestSignMessage(c *C) {
@@ -182,7 +204,7 @@ func (s *TssKeysisgnTestSuite) TestSignMessage(c *C) {
 
 	for i := 0; i < s.partyNum; i++ {
 		wg.Add(1)
-		go func(idx int) {
+		go func(idx int, streams *sync.Map) {
 			defer wg.Done()
 			comm := s.comms[idx]
 			stopChan := make(chan struct{})
@@ -191,6 +213,7 @@ func (s *TssKeysisgnTestSuite) TestSignMessage(c *C) {
 				comm.BroadcastMsgChan,
 				stopChan, messageID,
 				s.nodePrivKeys[idx], s.comms[idx], s.stateMgrs[idx])
+			keysignIns.GetTssCommonStruct().UpdateStreams(streams)
 			keysignMsgChannel := keysignIns.GetTssKeySignChannels()
 
 			comm.SetSubscribe(messages.TSSKeySignMsg, messageID, keysignMsgChannel)
@@ -209,7 +232,7 @@ func (s *TssKeysisgnTestSuite) TestSignMessage(c *C) {
 			lock.Lock()
 			defer lock.Unlock()
 			keysignResult[idx] = sig
-		}(i)
+		}(i, s.allStreams[s.comms[i].GetHost().ID()])
 	}
 	wg.Wait()
 	var signature string
@@ -264,7 +287,7 @@ func (s *TssKeysisgnTestSuite) TestSignMessageWithStop(c *C) {
 
 	for i := 0; i < s.partyNum; i++ {
 		wg.Add(1)
-		go func(idx int) {
+		go func(idx int, streams *sync.Map) {
 			defer wg.Done()
 			comm := s.comms[idx]
 			stopChan := make(chan struct{})
@@ -273,6 +296,8 @@ func (s *TssKeysisgnTestSuite) TestSignMessageWithStop(c *C) {
 				comm.BroadcastMsgChan,
 				stopChan, messageID,
 				s.nodePrivKeys[idx], s.comms[idx], s.stateMgrs[idx])
+
+			keysignIns.GetTssCommonStruct().UpdateStreams(streams)
 			keysignMsgChannel := keysignIns.GetTssKeySignChannels()
 
 			comm.SetSubscribe(messages.TSSKeySignMsg, messageID, keysignMsgChannel)
@@ -297,7 +322,7 @@ func (s *TssKeysisgnTestSuite) TestSignMessageWithStop(c *C) {
 				c.Assert(blames, HasLen, 1)
 				c.Assert(blames[0].Pubkey, Equals, testPubKeys[1])
 			}
-		}(i)
+		}(i, s.allStreams[s.comms[i].GetHost().ID()])
 	}
 	wg.Wait()
 }
@@ -346,7 +371,7 @@ func (s *TssKeysisgnTestSuite) TestSignMessageRejectOnePeer(c *C) {
 	}
 	for i := 0; i < s.partyNum; i++ {
 		wg.Add(1)
-		go func(idx int) {
+		go func(idx int, streams *sync.Map) {
 			defer wg.Done()
 			comm := s.comms[idx]
 			stopChan := make(chan struct{})
@@ -364,7 +389,7 @@ func (s *TssKeysisgnTestSuite) TestSignMessageRejectOnePeer(c *C) {
 			defer comm.CancelSubscribe(messages.TSSKeySignVerMsg, messageID)
 			defer comm.CancelSubscribe(messages.TSSControlMsg, messageID)
 			defer comm.CancelSubscribe(messages.TSSTaskDone, messageID)
-
+			keysignIns.GetTssCommonStruct().UpdateStreams(streams)
 			localState, err := s.stateMgrs[idx].GetLocalState(req.PoolPubKey)
 			c.Assert(err, IsNil)
 			if idx == 1 {
@@ -374,7 +399,8 @@ func (s *TssKeysisgnTestSuite) TestSignMessageRejectOnePeer(c *C) {
 			lastMsg := keysignIns.tssCommonStruct.GetBlameMgr().GetLastMsg()
 			log.Info().Msgf("%s------->last message %v, broadcast? %v", keysignIns.tssCommonStruct.GetLocalPeerID(), lastMsg.Type(), lastMsg.IsBroadcast())
 			c.Assert(err, IsNil)
-		}(i)
+			time.Sleep(time.Second * 2)
+		}(i, s.allStreams[s.comms[i].GetHost().ID()])
 	}
 	wg.Wait()
 }
@@ -387,6 +413,7 @@ func (s *TssKeysisgnTestSuite) TearDownTest(c *C) {
 	time.Sleep(time.Second)
 	for _, item := range s.comms {
 		c.Assert(item.Stop(), IsNil)
+		// p2p.ReleaseStream(nil, s.allStreams[item.GetHost().ID()])
 	}
 }
 

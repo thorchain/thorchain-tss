@@ -16,6 +16,7 @@ import (
 
 	"github.com/binance-chain/tss-lib/crypto"
 	"github.com/libp2p/go-libp2p-core/peer"
+	"github.com/rs/zerolog/log"
 	tcrypto "github.com/tendermint/tendermint/crypto"
 	"github.com/tendermint/tendermint/crypto/secp256k1"
 
@@ -67,6 +68,7 @@ type TssKeygenTestSuite struct {
 	stateMgrs    []storage.LocalStateManager
 	nodePrivKeys []tcrypto.PrivKey
 	targePeers   []peer.ID
+	allStreams   map[peer.ID]*sync.Map
 }
 
 var _ = Suite(&TssKeygenTestSuite{})
@@ -84,7 +86,6 @@ func (s *TssKeygenTestSuite) SetUpSuite(c *C) {
 		priKey := secp256k1.PrivKeySecp256k1(keyBytesArray)
 		s.nodePrivKeys = append(s.nodePrivKeys, priKey)
 	}
-
 	for _, el := range targets {
 		p, err := peer.Decode(el)
 		c.Assert(err, IsNil)
@@ -126,12 +127,34 @@ func (s *TssKeygenTestSuite) SetUpTest(c *C) {
 		c.Assert(err, IsNil)
 		s.stateMgrs[i] = fMgr
 	}
+
+	var peers []peer.ID
+	for _, h := range s.comms {
+		peers = append(peers, h.GetHost().ID())
+	}
+	time.Sleep(time.Second)
+	s.allStreams = make(map[peer.ID]*sync.Map)
+	for _, h := range s.comms {
+		var streams sync.Map
+		for _, pid := range peers {
+			if pid == h.GetHost().ID() {
+				continue
+			}
+			streamLog := log.With().Str("module", "communication").Logger()
+			c.Assert(err, IsNil)
+			s, err := p2p.GetStream(&streamLog, h.GetHost(), pid, p2p.TSSProtocolID)
+			c.Assert(err, IsNil)
+			streams.Store(pid, s)
+		}
+		s.allStreams[h.GetHost().ID()] = &streams
+	}
 }
 
 func (s *TssKeygenTestSuite) TearDownTest(c *C) {
 	time.Sleep(time.Second)
 	for _, item := range s.comms {
 		c.Assert(item.Stop(), IsNil)
+		p2p.ReleaseStream(nil, s.allStreams[item.GetHost().ID()])
 	}
 }
 
@@ -164,12 +187,14 @@ func (s *TssKeygenTestSuite) TestGenerateNewKey(c *C) {
 		KeySignTimeout:  60 * time.Second,
 		PreParamTimeout: 5 * time.Second,
 	}
+
 	wg := sync.WaitGroup{}
 	lock := &sync.Mutex{}
 	keygenResult := make(map[int]*crypto.ECPoint)
 	for i := 0; i < s.partyNum; i++ {
 		wg.Add(1)
-		go func(idx int) {
+		streams := s.allStreams[s.comms[i].GetHost().ID()]
+		go func(idx int, streams *sync.Map) {
 			defer wg.Done()
 			comm := s.comms[idx]
 			stopChan := make(chan struct{})
@@ -184,6 +209,7 @@ func (s *TssKeygenTestSuite) TestGenerateNewKey(c *C) {
 				messageID,
 				s.stateMgrs[idx], s.nodePrivKeys[idx], s.comms[idx])
 			c.Assert(keygenInstance, NotNil)
+			keygenInstance.GetTssCommonStruct().UpdateStreams(streams)
 			keygenMsgChannel := keygenInstance.GetTssKeyGenChannels()
 			comm.SetSubscribe(messages.TSSKeyGenMsg, messageID, keygenMsgChannel)
 			comm.SetSubscribe(messages.TSSKeyGenVerMsg, messageID, keygenMsgChannel)
@@ -198,7 +224,7 @@ func (s *TssKeygenTestSuite) TestGenerateNewKey(c *C) {
 			lock.Lock()
 			defer lock.Unlock()
 			keygenResult[idx] = resp
-		}(i)
+		}(i, streams)
 	}
 	wg.Wait()
 	ans := keygenResult[0]
@@ -221,7 +247,7 @@ func (s *TssKeygenTestSuite) TestGenerateNewKeyWithStop(c *C) {
 
 	for i := 0; i < s.partyNum; i++ {
 		wg.Add(1)
-		go func(idx int) {
+		go func(idx int, streams *sync.Map) {
 			defer wg.Done()
 			comm := s.comms[idx]
 			stopChan := make(chan struct{})
@@ -237,6 +263,7 @@ func (s *TssKeygenTestSuite) TestGenerateNewKeyWithStop(c *C) {
 				s.stateMgrs[idx],
 				s.nodePrivKeys[idx], s.comms[idx])
 			c.Assert(keygenInstance, NotNil)
+			keygenInstance.GetTssCommonStruct().UpdateStreams(streams)
 			keygenMsgChannel := keygenInstance.GetTssKeyGenChannels()
 			comm.SetSubscribe(messages.TSSKeyGenMsg, messageID, keygenMsgChannel)
 			comm.SetSubscribe(messages.TSSKeyGenVerMsg, messageID, keygenMsgChannel)
@@ -260,7 +287,7 @@ func (s *TssKeygenTestSuite) TestGenerateNewKeyWithStop(c *C) {
 				c.Assert(blames, HasLen, 1)
 				c.Assert(blames[0].Pubkey, Equals, testPubKeys[1])
 			}
-		}(i)
+		}(i, s.allStreams[s.comms[i].GetHost().ID()])
 	}
 	wg.Wait()
 }

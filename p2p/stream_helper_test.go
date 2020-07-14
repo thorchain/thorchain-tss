@@ -175,7 +175,7 @@ func TestReadPayload(t *testing.T) {
 				streamWrite := bufio.NewWriter(stream)
 
 				// streamWrite := bufio.NewWriter(stream)
-				err := WriteStreamWithBuffer(input, streamWrite, "")
+				err := WriteStreamWithBuffer(input, streamWrite)
 				if err != nil {
 					t.Errorf("fail to write the data to stream")
 					t.FailNow()

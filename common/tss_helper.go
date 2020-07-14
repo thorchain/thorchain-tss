@@ -147,6 +147,7 @@ func (t *TssCommon) NotifyTaskDone() error {
 	t.renderToP2P(&messages.BroadcastMsgChan{
 		WrappedMessage: wrappedMsg,
 		PeersID:        t.P2PPeers,
+		Streams:        t.streams,
 	})
 	return nil
 }
@@ -179,6 +180,7 @@ func (t *TssCommon) processRequestMsgFromPeer(peersID []peer.ID, msg *messages.T
 	t.renderToP2P(&messages.BroadcastMsgChan{
 		WrappedMessage: wrappedMsg,
 		PeersID:        peersID,
+		Streams:        t.streams,
 	})
 	return nil
 }

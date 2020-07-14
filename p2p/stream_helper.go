@@ -47,7 +47,7 @@ func ReadStreamWithBuffer(streamReader *bufio.Reader) ([]byte, error) {
 }
 
 // WriteStreamWithBuffer write the message to stream
-func WriteStreamWithBuffer(msg []byte, streamWrite *bufio.Writer, localPeer peer.ID) error {
+func WriteStreamWithBuffer(msg []byte, streamWrite *bufio.Writer) error {
 	length := uint32(len(msg))
 	lengthBytes := make([]byte, LengthHeader)
 	binary.LittleEndian.PutUint32(lengthBytes, length)
@@ -98,9 +98,11 @@ func GetStream(l *zerolog.Logger, h host.Host, remotePeer peer.ID, p protocol.ID
 			stream, err = h.NewStream(ctx, remotePeer, p)
 			if err != nil {
 				streamError = fmt.Errorf("fail to create stream to peer(%s):%w", remotePeer, err)
-				l.Error().Err(err).Msgf("fail to create stream with retry %d", i)
+				if l != nil {
+					l.Error().Err(err).Msgf("fail to create stream with retry %d", i)
+				}
 				time.Sleep(time.Second)
-				fmt.Printf("\nwe continue......\n")
+				fmt.Printf("-----%s\n", err)
 				continue
 			}
 			break

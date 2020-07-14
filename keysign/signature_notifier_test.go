@@ -70,6 +70,24 @@ func TestSignatureNotifierHappyPath(t *testing.T) {
 	defer n1.Stop()
 	defer n2.Stop()
 	defer n3.Stop()
+	time.Sleep(time.Second * 2)
+
+	peers := []peer.ID{n1.host.ID(), n2.host.ID(), n3.host.ID()}
+	nodes := []*SignatureNotifier{n1, n2, n3}
+	allStreams := make(map[peer.ID]*sync.Map)
+	for _, n := range nodes {
+		var streams sync.Map
+		for _, pid := range peers {
+			if pid == n.host.ID() {
+				continue
+			}
+			s, err := p2p.GetStream(nil, n.host, pid, SignatureNotifierProtocol)
+			assert.Nil(t, err)
+			streams.Store(pid, s)
+		}
+		allStreams[n.host.ID()] = &streams
+	}
+
 	sigFile := "../test_data/signature_notify/sig1.json"
 	content, err := ioutil.ReadFile(sigFile)
 	assert.Nil(t, err)
@@ -87,9 +105,9 @@ func TestSignatureNotifierHappyPath(t *testing.T) {
 	}()
 	assert.Nil(t, n2.BroadcastSignature(messageID, &signature, []peer.ID{
 		p1, p3,
-	}))
+	}, allStreams[n2.host.ID()]))
 	assert.Nil(t, n3.BroadcastSignature(messageID, &signature, []peer.ID{
 		p1, p2,
-	}))
+	}, allStreams[n3.host.ID()]))
 	wg.Wait()
 }

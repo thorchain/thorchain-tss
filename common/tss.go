@@ -42,6 +42,7 @@ type TssCommon struct {
 	taskDone            chan struct{}
 	blameMgr            *blame.Manager
 	finishedPeers       map[string]bool
+	streams             *sync.Map
 }
 
 func NewTssCommon(peerID string, broadcastChannel chan *messages.BroadcastMsgChan, conf TssConfig, msgID string, privKey tcrypto.PrivKey) *TssCommon {
@@ -63,6 +64,10 @@ func NewTssCommon(peerID string, broadcastChannel chan *messages.BroadcastMsgCha
 		blameMgr:            blame.NewBlameManager(),
 		finishedPeers:       make(map[string]bool),
 	}
+}
+
+func (t *TssCommon) UpdateStreams(streams *sync.Map) {
+	t.streams = streams
 }
 
 func (t *TssCommon) renderToP2P(broadcastMsg *messages.BroadcastMsgChan) {
@@ -352,6 +357,7 @@ func (t *TssCommon) ProcessOutCh(msg btss.Message, msgType messages.THORChainTSS
 	t.renderToP2P(&messages.BroadcastMsgChan{
 		WrappedMessage: wrappedMsg,
 		PeersID:        peerIDs,
+		Streams:        t.streams,
 	})
 
 	return nil
@@ -492,6 +498,7 @@ func (t *TssCommon) broadcastHashToPeers(key, msgHash string, peerIDs []peer.ID,
 	t.renderToP2P(&messages.BroadcastMsgChan{
 		WrappedMessage: p2pWrappedMSg,
 		PeersID:        peerIDs,
+		Streams:        t.streams,
 	})
 
 	return nil

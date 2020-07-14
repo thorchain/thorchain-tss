@@ -176,7 +176,7 @@ func (pc *PartyCoordinator) sendRequestToPeer(msg *messages.JoinPartyRequest, lo
 		}
 	}
 	streamWrite := bufio.NewWriter(pStream)
-	err = WriteStreamWithBuffer(msgBuf, streamWrite, localPeer)
+	err = WriteStreamWithBuffer(msgBuf, streamWrite)
 	if err != nil {
 		if errReset := pStream.Reset(); errReset != nil {
 			return errReset
