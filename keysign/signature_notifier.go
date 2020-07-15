@@ -123,7 +123,14 @@ func (s *SignatureNotifier) sendOneMsgToPeer(m *signatureItem) error {
 	if err != nil {
 		return fmt.Errorf("fail to marshal Keysign Signature to bytes:%w", err)
 	}
-
+	if p2p.ApplyDeadline {
+		if err := m.stream.SetWriteDeadline(time.Now().Add(time.Second * 2)); nil != err {
+			return err
+		}
+		if err := m.stream.SetReadDeadline(time.Now().Add(time.Second * 2)); nil != err {
+			return err
+		}
+	}
 	streamWrite := bufio.NewWriter(m.stream)
 	err = p2p.WriteStreamWithBuffer(ksBuf, streamWrite)
 	if err != nil {
@@ -167,12 +174,6 @@ func (s *SignatureNotifier) broadcastCommon(messageID string, sig *bc.SignatureD
 			peerID:        p,
 			signatureData: sig,
 			stream:        stream,
-		}
-		if err := stream.SetWriteDeadline(time.Now().Add(time.Second * 2)); nil != err {
-			return err
-		}
-		if err := stream.SetReadDeadline(time.Now().Add(time.Second * 2)); nil != err {
-			return err
 		}
 		wg.Add(1)
 		go func() {

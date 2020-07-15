@@ -222,40 +222,42 @@ func (s *FourNodeTestSuite) TestFailJoinParty(c *C) {
 	}
 }
 
-//func (s *FourNodeTestSuite) TestBlame(c *C) {
-//	s.isBlameTest = true
-//	expectedFailNode := testPubKeys[0]
-//	req := keygen.NewRequest(testPubKeys)
-//	wg := sync.WaitGroup{}
-//	lock := &sync.Mutex{}
-//	keygenResult := make(map[int]keygen.Response)
-//	for i := 0; i < partyNum; i++ {
-//		wg.Add(1)
-//		go func(idx int) {
-//			defer wg.Done()
-//			res, err := s.servers[idx].Keygen(req)
-//			c.Assert(err, NotNil)
-//			lock.Lock()
-//			defer lock.Unlock()
-//			keygenResult[idx] = res
-//		}(i)
-//	}
-//	// if we shutdown one server during keygen , he should be blamed
-//
-//	time.Sleep(time.Millisecond * 100)
-//	s.servers[0].Stop()
-//	wg.Wait()
-//	c.Logf("result:%+v", keygenResult)
-//	for idx, item := range keygenResult {
-//		if idx == 0 {
-//			continue
-//		}
-//		c.Assert(item.PubKey, Equals, "")
-//		c.Assert(item.Status, Equals, common.Fail)
-//		c.Assert(item.Blame.BlameNodes, HasLen, 1)
-//		c.Assert(item.Blame.BlameNodes[0].Pubkey, Equals, expectedFailNode)
-//	}
-//}
+func (s *FourNodeTestSuite) TestBlame(c *C) {
+	s.isBlameTest = true
+	expectedFailNode := testPubKeys[0]
+	req := keygen.NewRequest(testPubKeys)
+	wg := sync.WaitGroup{}
+	lock := &sync.Mutex{}
+	keygenResult := make(map[int]keygen.Response)
+	for i := 0; i < partyNum; i++ {
+		wg.Add(1)
+		go func(idx int) {
+			defer wg.Done()
+			res, err := s.servers[idx].Keygen(req)
+			c.Assert(err, IsNil)
+			lock.Lock()
+			defer lock.Unlock()
+			keygenResult[idx] = res
+		}(i)
+	}
+	// if we shutdown one server during keygen , he should be blamed
+
+	time.Sleep(time.Millisecond * 100)
+	s.servers[0].Stop()
+	wg.Wait()
+	c.Logf("result:%+v", keygenResult)
+	for idx, item := range keygenResult {
+		if idx == 0 {
+			continue
+		}
+		c.Assert(item.PubKey, Equals, "")
+		c.Assert(item.Status, Equals, common.Fail)
+		c.Assert(item.Blame.BlameNodes, HasLen, 1)
+		c.Assert(item.Blame.BlameNodes[0].Pubkey, Equals, expectedFailNode)
+	}
+	// we need to ensure all the nodes get the connected stream before we quit
+	time.Sleep(time.Second * 3)
+}
 
 func (s *FourNodeTestSuite) TearDownTest(c *C) {
 	// give a second before we shutdown the network

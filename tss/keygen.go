@@ -57,27 +57,46 @@ func (t *TssServer) Keygen(req keygen.Request) (keygen.Response, error) {
 	time.Sleep(time.Second * 3)
 	var streamsJoinParty sync.Map
 	var streamsTss sync.Map
+	streamPeers := []peer.ID{t.p2pCommunication.GetHost().ID()}
 	for _, el := range peerIDs {
 		pid, err := peer.Decode(el)
-		if pid == t.p2pCommunication.GetHost().ID() {
-			continue
-		}
 		if err != nil {
 			return keygen.Response{}, fmt.Errorf("fail to decode peer id(%s):%w", el, err)
 		}
+		if pid == t.p2pCommunication.GetHost().ID() {
+			continue
+		}
 		s, err := p2p.GetStream(&t.logger, t.p2pCommunication.GetHost(), pid, p2p.JoinPartyProtocol)
 		if err != nil {
-			return keygen.Response{}, fmt.Errorf("fail to get stream for stream (%s):%w", el, err)
+			t.logger.Error().Err(err).Msgf("fail to create stream to peer %s", pid)
+			continue
 		}
 		s2, err := p2p.GetStream(&t.logger, t.p2pCommunication.GetHost(), pid, p2p.TSSProtocolID)
 		if err != nil {
-			return keygen.Response{}, fmt.Errorf("fail to get stream for stream (%s):%w", el, err)
+			t.logger.Error().Err(err).Msgf("fail to create stream to peer %s", pid)
+			continue
 		}
+		streamPeers = append(streamPeers, pid)
 		streamsJoinParty.Store(pid, s)
 		streamsTss.Store(pid, s2)
 	}
 	defer p2p.ReleaseStream(&t.logger, &streamsJoinParty)
 	defer p2p.ReleaseStream(&t.logger, &streamsTss)
+	if len(streamPeers) != len(peerIDs) {
+		// we have some peers fail to connect
+		blameMgr := keygenInstance.GetTssCommonStruct().GetBlameMgr()
+		blameNodes, err := blameMgr.NodeSyncBlame(req.Keys, streamPeers)
+		if err != nil {
+			t.logger.Err(err).Msg("fail to get peers to blame")
+		}
+		fmt.Printf("#########we(%s)---11---%v>>>%v\n", t.p2pCommunication.GetHost().ID(), len(blameNodes.BlameNodes), blameNodes.String())
+		t.logger.Error().Err(err).Msgf("fail to open stream with blame nodes:%v", blameNodes.BlameNodes)
+		return keygen.Response{
+			Status: common.Fail,
+			Blame:  blameNodes,
+		}, nil
+	}
+
 	keygenInstance.GetTssCommonStruct().UpdateStreams(&streamsTss)
 	onlinePeers, err := t.joinParty(msgID, req.Keys, &streamsJoinParty)
 	if err != nil {
@@ -94,7 +113,7 @@ func (t *TssServer) Keygen(req keygen.Request) (keygen.Response, error) {
 			t.logger.Err(err).Msg("fail to get peers to blame")
 		}
 		// make sure we blame the leader as well
-		t.logger.Error().Err(err).Msgf("fail to form keysign party with online:%v", onlinePeers)
+		t.logger.Error().Err(err).Msgf("fail to form keygen party with online:%v", onlinePeers)
 		return keygen.Response{
 			Status: common.Fail,
 			Blame:  blameNodes,

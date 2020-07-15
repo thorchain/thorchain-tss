@@ -81,34 +81,31 @@ func (t *TssServer) KeySign(req keysign.Request) (keysign.Response, error) {
 	}
 	var streamsJoinparty sync.Map
 	var streamsTss sync.Map
-	var streamsNofifier sync.Map
+	streamPeers := []peer.ID{t.p2pCommunication.GetHost().ID()}
 	for _, el := range peerIDs {
 		pid, err := peer.Decode(el)
 		if el == t.GetLocalPeerID() {
 			continue
 		}
 		if err != nil {
-			return keysign.Response{}, fmt.Errorf("fail to decode peer id(%s):%w", el, err)
+			t.logger.Error().Err(err).Msgf("fail to create stream to peer %s", pid)
+			continue
 		}
 		s, err := p2p.GetStream(&t.logger, t.p2pCommunication.GetHost(), pid, p2p.JoinPartyProtocol)
 		if err != nil {
-			return keysign.Response{}, fmt.Errorf("fail to get stream for stream (%s):%w", el, err)
+			t.logger.Error().Err(err).Msgf("fail to create stream to peer %s", pid)
+			continue
 		}
 		s2, err := p2p.GetStream(&t.logger, t.p2pCommunication.GetHost(), pid, p2p.TSSProtocolID)
 		if err != nil {
 			return keysign.Response{}, fmt.Errorf("fail to get stream for stream (%s):%w", el, err)
 		}
-		s3, err := p2p.GetStream(&t.logger, t.p2pCommunication.GetHost(), pid, keysign.SignatureNotifierProtocol)
-		if err != nil {
-			return keysign.Response{}, fmt.Errorf("fail to get stream for stream (%s):%w", el, err)
-		}
+		streamPeers = append(streamPeers, pid)
 		streamsJoinparty.Store(pid, s)
 		streamsTss.Store(pid, s2)
-		streamsNofifier.Store(pid, s3)
 	}
 	defer p2p.ReleaseStream(&t.logger, &streamsJoinparty)
 	defer p2p.ReleaseStream(&t.logger, &streamsTss)
-	defer p2p.ReleaseStream(&t.logger, &streamsNofifier)
 	keysignInstance.GetTssCommonStruct().UpdateStreams(&streamsTss)
 
 	if !t.isPartOfKeysignParty(req.SignerPubKeys) {
@@ -127,31 +124,47 @@ func (t *TssServer) KeySign(req keysign.Request) (keysign.Response, error) {
 			blame.Blame{},
 		), nil
 	}
-	blameMgr := keysignInstance.GetTssCommonStruct().GetBlameMgr()
 	// get all the tss nodes that were part of the original key gen
 	signers, err := conversion.GetPeerIDs(localStateItem.ParticipantKeys)
 	if err != nil {
 		return emptyResp, fmt.Errorf("fail to convert pub keys to peer id:%w", err)
 	}
 
+	var streamsNotifier sync.Map
 	for _, pid := range signers {
 		if pid.String() == t.GetLocalPeerID() {
 			continue
 		}
-
 		s3, err := p2p.GetStream(&t.logger, t.p2pCommunication.GetHost(), pid, keysign.SignatureNotifierProtocol)
 		if err != nil {
-			return keysign.Response{}, fmt.Errorf("fail to get stream for stream (%s):%w", pid, err)
+			t.logger.Debug().Msgf("this node is not online %s", pid)
+			continue
 		}
-		streamsNofifier.Store(pid, s3)
+		streamsNotifier.Store(pid, s3)
 	}
-	defer p2p.ReleaseStream(&t.logger, &streamsNofifier)
+	defer p2p.ReleaseStream(&t.logger, &streamsNotifier)
+
+	blameMgr := keysignInstance.GetTssCommonStruct().GetBlameMgr()
+	if len(streamPeers) != len(peerIDs) {
+		// we have some peers fail to connect
+		blameNodes, err := blameMgr.NodeSyncBlame(req.SignerPubKeys, streamPeers)
+		if err != nil {
+			t.logger.Err(err).Msg("fail to get peers to blame")
+		}
+		t.broadcastKeysignFailure(msgID, signers, &streamsNotifier)
+		// make sure we blame the leader as well
+		t.logger.Error().Err(err).Msgf("fail to form keysign party with online:%v", streamPeers)
+		return keysign.Response{
+			Status: common.Fail,
+			Blame:  blameNodes,
+		}, nil
+	}
 
 	onlinePeers, err := t.joinParty(msgID, req.SignerPubKeys, &streamsJoinparty)
 	if err != nil {
 		if onlinePeers == nil {
 			t.logger.Error().Err(err).Msg("error before we start join party")
-			t.broadcastKeysignFailure(msgID, signers, &streamsNofifier)
+			t.broadcastKeysignFailure(msgID, signers, &streamsNotifier)
 			return keysign.Response{
 				Status: common.Fail,
 				Blame:  blame.NewBlame(blame.InternalError, []blame.Node{}),
@@ -162,7 +175,7 @@ func (t *TssServer) KeySign(req keysign.Request) (keysign.Response, error) {
 		if err != nil {
 			t.logger.Err(err).Msg("fail to get peers to blame")
 		}
-		t.broadcastKeysignFailure(msgID, signers, &streamsNofifier)
+		t.broadcastKeysignFailure(msgID, signers, &streamsNotifier)
 		// make sure we blame the leader as well
 		t.logger.Error().Err(err).Msgf("fail to form keysign party with online:%v", onlinePeers)
 		return keysign.Response{
@@ -177,7 +190,7 @@ func (t *TssServer) KeySign(req keysign.Request) (keysign.Response, error) {
 	if err != nil {
 		t.logger.Error().Err(err).Msg("err in keysign")
 		atomic.AddUint64(&t.Status.FailedKeySign, 1)
-		t.broadcastKeysignFailure(msgID, signers, &streamsNofifier)
+		t.broadcastKeysignFailure(msgID, signers, &streamsNotifier)
 		blameNodes := *blameMgr.GetBlame()
 		return keysign.Response{
 			Status: common.Fail,
@@ -188,7 +201,7 @@ func (t *TssServer) KeySign(req keysign.Request) (keysign.Response, error) {
 	atomic.AddUint64(&t.Status.SucKeySign, 1)
 
 	// update signature notification
-	if err := t.signatureNotifier.BroadcastSignature(msgID, signatureData, signers, &streamsNofifier); err != nil {
+	if err := t.signatureNotifier.BroadcastSignature(msgID, signatureData, signers, &streamsNotifier); err != nil {
 		return emptyResp, fmt.Errorf("fail to broadcast signature:%w", err)
 	}
 	return keysign.NewResponse(
