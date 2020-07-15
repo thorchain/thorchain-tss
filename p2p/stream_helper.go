@@ -98,16 +98,15 @@ func GetStream(l *zerolog.Logger, h host.Host, remotePeer peer.ID, p protocol.ID
 	streamGetChan := make(chan struct{})
 	go func() {
 		defer close(streamGetChan)
-		for i := 0; i < 2; i++ {
+		for i := 0; i < 4; i++ {
 			stream, err = h.NewStream(ctx, remotePeer, p)
 			if err != nil {
 				streamError = fmt.Errorf("fail to create stream to peer(%s):%w", remotePeer, err)
 				if l != nil {
 					l.Error().Err(err).Msgf("fail to create stream with retry %d", i)
+					time.Sleep(time.Second)
+					continue
 				}
-				time.Sleep(time.Second)
-				fmt.Printf("-----%s\n", err)
-				continue
 			}
 			break
 		}

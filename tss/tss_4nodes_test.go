@@ -255,13 +255,11 @@ func (s *FourNodeTestSuite) TestBlame(c *C) {
 		c.Assert(item.Blame.BlameNodes, HasLen, 1)
 		c.Assert(item.Blame.BlameNodes[0].Pubkey, Equals, expectedFailNode)
 	}
-	// we need to ensure all the nodes get the connected stream before we quit
-	time.Sleep(time.Second * 3)
 }
 
 func (s *FourNodeTestSuite) TearDownTest(c *C) {
 	// give a second before we shutdown the network
-	time.Sleep(time.Second)
+	time.Sleep(time.Second * 5)
 	if !s.isBlameTest {
 		s.servers[0].Stop()
 	}
