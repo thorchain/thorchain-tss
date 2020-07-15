@@ -62,6 +62,10 @@ func (s *SignatureNotifier) processSignature(stream network.Stream) {
 	streamReader := bufio.NewReader(stream)
 	payload, err := p2p.ReadStreamWithBuffer(streamReader)
 	if err != nil {
+		if err.Error() == "error in read the message head stream reset" {
+			logger.Debug().Msgf("we receive the close reset stream")
+			return
+		}
 		logger.Err(err).Msgf("fail to read payload from stream")
 		return
 	}

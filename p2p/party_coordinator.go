@@ -68,7 +68,10 @@ func (pc *PartyCoordinator) HandleStream(stream network.Stream) {
 		for {
 			payload, err := ReadStreamWithBuffer(streamReader)
 			if err != nil {
-				fmt.Printf("%v", err.Error())
+				if err.Error() == "error in read the message head stream reset" {
+					logger.Debug().Err(err).Msgf("we receive the close reset stream")
+					return
+				}
 				logger.Err(err).Msgf("fail to read payload from stream")
 				return
 			}
@@ -198,7 +201,7 @@ func (pc *PartyCoordinator) JoinPartyWithRetry(msg *messages.JoinPartyRequest, p
 	_, offline := peerGroup.getPeersStatus()
 	var wg sync.WaitGroup
 	done := make(chan struct{})
-	defer wg.Add(1)
+	wg.Add(1)
 	go func() {
 		defer wg.Done()
 		for {

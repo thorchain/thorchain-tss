@@ -167,7 +167,6 @@ func (c *Communication) readFromStream(stream network.Stream) {
 			streamReader := bufio.NewReader(stream)
 			dataBuf, err := ReadStreamWithBuffer(streamReader)
 			if err != nil {
-				fmt.Printf("wwwwwwwwwwwwwww\n")
 				if err.Error() == "error in read the message head stream reset" {
 					c.logger.Debug().Msgf("we release the stream as it is closed(reset)")
 					return
