@@ -10,11 +10,13 @@ import (
 	"time"
 
 	"github.com/libp2p/go-libp2p"
+	relay "github.com/libp2p/go-libp2p-circuit"
 	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/network"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/libp2p/go-libp2p-core/protocol"
+	"github.com/libp2p/go-libp2p-core/routing"
 	discovery "github.com/libp2p/go-libp2p-discovery"
 	dht "github.com/libp2p/go-libp2p-kad-dht"
 	swarm "github.com/libp2p/go-libp2p-swarm"
@@ -246,10 +248,17 @@ func (c *Communication) startChannel(privKeyBytes []byte) error {
 		}
 		return addrs
 	}
+
 	h, err := libp2p.New(ctx,
 		libp2p.ListenAddrs([]maddr.Multiaddr{c.listenAddr}...),
 		libp2p.Identity(p2pPriKey),
 		libp2p.AddrsFactory(addressFactory),
+		libp2p.EnableAutoRelay(),
+		libp2p.EnableRelay(relay.OptHop),
+		libp2p.Routing(func(h host.Host) (routing.PeerRouting, error) {
+			// make the DHT with the given Host
+			return dht.New(ctx, h)
+		}),
 	)
 	swarm.BackoffBase = time.Millisecond * 500
 	swarm.BackoffCoef = time.Millisecond * 100
