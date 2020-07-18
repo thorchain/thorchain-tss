@@ -70,7 +70,7 @@ func (t *TssServer) Keygen(req keygen.Request) (keygen.Response, error) {
 
 	}
 
-	t.logger.Info().Msg("keygen party formed")
+	t.logger.Debug().Msg("keygen party formed")
 	// the statistic of keygen only care about Tss it self, even if the
 	// following http response aborts, it still counted as a successful keygen
 	// as the Tss model runs successfully.

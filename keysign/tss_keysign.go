@@ -135,8 +135,8 @@ func (tKeySign *TssKeySign) SignMessage(msgToSign []byte, localStateItem storage
 }
 
 func (tKeySign *TssKeySign) processKeySign(errChan chan struct{}, outCh <-chan btss.Message, endCh <-chan bc.SignatureData) (*bc.SignatureData, error) {
-	defer tKeySign.logger.Info().Msg("key sign finished")
-	tKeySign.logger.Info().Msg("start to read messages from local party")
+	defer tKeySign.logger.Debug().Msg("key sign finished")
+	tKeySign.logger.Debug().Msg("start to read messages from local party")
 	tssConf := tKeySign.tssCommonStruct.GetConf()
 	blameMgr := tKeySign.tssCommonStruct.GetBlameMgr()
 	for {

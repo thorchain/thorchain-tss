@@ -168,8 +168,8 @@ func (c *Communication) readFromStream(stream network.Stream) {
 		c.logger.Debug().Msgf(">>>>>>>[%s] %s", wrappedMsg.MessageType, string(wrappedMsg.Payload))
 		channel := c.getSubscriber(wrappedMsg.MessageType, wrappedMsg.MsgID)
 		if nil == channel {
-			c.logger.Info().Msgf("no MsgID %s found for this message", wrappedMsg.MsgID)
-			c.logger.Info().Msgf("no MsgID %s found for this message", wrappedMsg.MessageType)
+			c.logger.Debug().Msgf("no MsgID %s found for this message", wrappedMsg.MsgID)
+			c.logger.Debug().Msgf("no MsgID %s found for this message", wrappedMsg.MessageType)
 			return
 		}
 		channel <- &Message{
@@ -189,7 +189,7 @@ func (c *Communication) handleStream(stream network.Stream) {
 
 func (c *Communication) bootStrapConnectivityCheck() error {
 	if len(c.bootstrapPeers) == 0 {
-		c.logger.Info().Msg("we do not have the bootstrap node set, quit the connectivity check")
+		c.logger.Error().Msg("we do not have the bootstrap node set, quit the connectivity check")
 		return nil
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)
@@ -210,7 +210,7 @@ func (c *Communication) bootStrapConnectivityCheck() error {
 				break
 			}
 			if ret.Error == nil {
-				c.logger.Info().Msgf("connect to peer %v with RTT %v\n", peer.ID, ret.RTT)
+				c.logger.Debug().Msgf("connect to peer %v with RTT %v\n", peer.ID, ret.RTT)
 				return nil
 			}
 		}
@@ -265,7 +265,7 @@ func (c *Communication) startChannel(privKeyBytes []byte) error {
 		if connectionErr == nil {
 			break
 		}
-		c.logger.Info().Msg("cannot connect to any bootstrap node, retry in 5 seconds")
+		c.logger.Error().Msg("cannot connect to any bootstrap node, retry in 5 seconds")
 		time.Sleep(time.Second * 5)
 	}
 	if connectionErr != nil {
@@ -402,8 +402,8 @@ func (c *Communication) CancelSubscribe(topic messages.THORChainTSSMessageType, 
 }
 
 func (c *Communication) ProcessBroadcast() {
-	c.logger.Info().Msg("start to process broadcast message channel")
-	defer c.logger.Info().Msg("stop process broadcast message channel")
+	c.logger.Debug().Msg("start to process broadcast message channel")
+	defer c.logger.Debug().Msg("stop process broadcast message channel")
 	defer c.wg.Done()
 	for {
 		select {

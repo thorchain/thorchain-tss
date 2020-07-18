@@ -231,7 +231,7 @@ func (t *TssCommon) ProcessOneMessage(wrappedMsg *messages.WrappedMessage, peerI
 			}
 			t.finishedPeers[peerID] = true
 			if len(t.finishedPeers) == len(t.partyInfo.PartyIDMap)-1 {
-				t.logger.Info().Msg("we get the confirm of the nodes that generate the signature")
+				t.logger.Debug().Msg("we get the confirm of the nodes that generate the signature")
 				close(t.taskDone)
 			}
 			return nil
@@ -254,7 +254,7 @@ func (t *TssCommon) ProcessOneMessage(wrappedMsg *messages.WrappedMessage, peerI
 			t.logger.Debug().Msg("this request does not exit, maybe already processed")
 			return nil
 		}
-		t.logger.Info().Msg("we got the missing share from the peer")
+		t.logger.Debug().Msg("we got the missing share from the peer")
 		return t.processTSSMsg(wireMsg.Msg, wireMsg.RequestType, true)
 	}
 
@@ -635,9 +635,9 @@ func (t *TssCommon) removeKey(key string) {
 }
 
 func (t *TssCommon) ProcessInboundMessages(finishChan chan struct{}, wg *sync.WaitGroup) {
-	t.logger.Info().Msg("start processing inbound messages")
+	t.logger.Debug().Msg("start processing inbound messages")
 	defer wg.Done()
-	defer t.logger.Info().Msg("stop processing inbound messages")
+	defer t.logger.Debug().Msg("stop processing inbound messages")
 	for {
 		select {
 		case <-finishChan:

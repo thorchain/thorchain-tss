@@ -113,7 +113,7 @@ func (tKeyGen *TssKeyGen) GenerateNewKey(keygenReq Request) (*bcrypto.ECPoint, e
 	// start keygen
 	go func() {
 		defer keyGenWg.Done()
-		defer tKeyGen.logger.Info().Msg("keyGenParty started")
+		defer tKeyGen.logger.Debug().Msg("keyGenParty started")
 		if err := keyGenParty.Start(); nil != err {
 			tKeyGen.logger.Error().Err(err).Msg("fail to start keygen party")
 			close(errChan)
@@ -142,8 +142,8 @@ func (tKeyGen *TssKeyGen) processKeyGen(errChan chan struct{},
 	outCh <-chan btss.Message,
 	endCh <-chan bkg.LocalPartySaveData,
 	keyGenLocalStateItem storage.KeygenLocalState) (*bcrypto.ECPoint, error) {
-	defer tKeyGen.logger.Info().Msg("finished keygen process")
-	tKeyGen.logger.Info().Msg("start to read messages from local party")
+	defer tKeyGen.logger.Debug().Msg("finished keygen process")
+	tKeyGen.logger.Debug().Msg("start to read messages from local party")
 	tssConf := tKeyGen.tssCommonStruct.GetConf()
 	blameMgr := tKeyGen.tssCommonStruct.GetBlameMgr()
 	for {

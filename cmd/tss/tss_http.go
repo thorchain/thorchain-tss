@@ -75,7 +75,7 @@ func (t *TssHttpServer) keygenHandler(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	t.logger.Info().Msgf("resp:%+v", resp)
+	t.logger.Debug().Msgf("resp:%+v", resp)
 	buf, err := json.Marshal(resp)
 	if err != nil {
 		t.logger.Error().Err(err).Msg("fail to marshal response to json")
