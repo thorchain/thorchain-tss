@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"sync"
 	"sync/atomic"
-	"time"
 
 	"github.com/libp2p/go-libp2p-core/peer"
 
@@ -54,7 +53,6 @@ func (t *TssServer) Keygen(req keygen.Request) (keygen.Response, error) {
 	if err != nil {
 		return keygen.Response{}, err
 	}
-	time.Sleep(time.Second * 3)
 	var streamsJoinParty sync.Map
 	var streamsTss sync.Map
 	streamPeers := []peer.ID{t.p2pCommunication.GetHost().ID()}
