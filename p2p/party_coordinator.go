@@ -156,7 +156,6 @@ func (pc *PartyCoordinator) sendRequestToPeer(msg *messages.JoinPartyRequest, re
 			streamError = fmt.Errorf("fail to create stream to peer(%s):%w", remotePeer, err)
 		}
 	}()
-
 	select {
 	case <-streamGetChan:
 		if streamError != nil {
@@ -165,9 +164,6 @@ func (pc *PartyCoordinator) sendRequestToPeer(msg *messages.JoinPartyRequest, re
 		}
 	case <-ctx.Done():
 		pc.logger.Error().Err(ctx.Err()).Msg("fail to open stream with context timeout")
-		// we reset the whole connection of this peer
-		err := pc.host.Network().ClosePeer(remotePeer)
-		pc.logger.Error().Err(err).Msgf("fail to close the connection to peer %s", remotePeer.String())
 		return ctx.Err()
 	}
 

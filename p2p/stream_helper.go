@@ -124,9 +124,12 @@ func WriteStreamWithBuffer(msg []byte, stream network.Stream) error {
 	if err != nil {
 		return err
 	}
-	err = streamWrite.Flush()
-	if uint32(n) != length || err != nil {
+	if uint32(n) != length {
 		return fmt.Errorf("short write, we would like to write: %d, however we only write: %d", length, n)
+	}
+	err = streamWrite.Flush()
+	if err != nil {
+		return fmt.Errorf("fail to flush stream: %w", err)
 	}
 	return nil
 }

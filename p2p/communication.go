@@ -230,7 +230,7 @@ func (c *Communication) startChannel(privKeyBytes []byte) error {
 
 	addressFactory := func(addrs []maddr.Multiaddr) []maddr.Multiaddr {
 		if c.externalAddr != nil {
-			addrs = append(addrs, c.externalAddr)
+			return []maddr.Multiaddr{c.externalAddr}
 		}
 		return addrs
 	}
