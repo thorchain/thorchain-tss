@@ -148,9 +148,9 @@ func (c *Communication) writeToStream(pID peer.ID, msg []byte, stream network.St
 	c.logger.Debug().Msgf(">>>writing messages to peer(%s)", pID)
 	if ApplyDeadline {
 		if err := stream.SetWriteDeadline(time.Now().Add(TimeoutWritePayload)); nil != err {
-			// if errReset := stream.Reset(); errReset != nil {
-			//		return err
-			//	}
+			if errReset := stream.Reset(); errReset != nil {
+				return err
+			}
 			return err
 		}
 	}

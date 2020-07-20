@@ -124,10 +124,10 @@ func (s *SignatureNotifier) sendOneMsgToPeer(m *signatureItem) error {
 		return fmt.Errorf("fail to marshal Keysign Signature to bytes:%w", err)
 	}
 	if p2p.ApplyDeadline {
-		if err := m.stream.SetWriteDeadline(time.Now().Add(time.Second * 2)); nil != err {
+		if err := m.stream.SetWriteDeadline(time.Now().Add(time.Second * 10)); nil != err {
 			return err
 		}
-		if err := m.stream.SetReadDeadline(time.Now().Add(time.Second * 2)); nil != err {
+		if err := m.stream.SetReadDeadline(time.Now().Add(time.Second * 10)); nil != err {
 			return err
 		}
 	}
