@@ -6,6 +6,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
+	"math"
 	"sync"
 	"time"
 
@@ -20,7 +21,8 @@ const (
 	LengthHeader        = 4 // LengthHeader represent how many bytes we used as header
 	TimeoutReadPayload  = time.Second * 40
 	TimeoutWritePayload = time.Second * 40
-	MaxPayload          = 512000 // 512kb
+	MaxPayload          = math.MaxUint32 // 512kb
+
 )
 
 // applyDeadline will be true , and only disable it when we are doing test
