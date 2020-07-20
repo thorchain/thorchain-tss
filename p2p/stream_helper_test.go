@@ -166,9 +166,9 @@ func TestReadPayload(t *testing.T) {
 
 				if ApplyDeadline {
 					if err := stream.SetWriteDeadline(time.Now().Add(TimeoutWritePayload)); nil != err {
-						if errReset := stream.Reset(); errReset != nil {
-							return nil
-						}
+						//if errReset := stream.Reset(); errReset != nil {
+						//	return nil
+						//}
 						return nil
 					}
 				}

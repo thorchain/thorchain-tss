@@ -172,18 +172,18 @@ func (pc *PartyCoordinator) sendRequestToPeer(msg *messages.JoinPartyRequest, lo
 	}
 	if ApplyDeadline {
 		if err := pStream.SetWriteDeadline(time.Now().Add(TimeoutWritePayload)); nil != err {
-			if errReset := pStream.Reset(); errReset != nil {
-				return errReset
-			}
+			//if errReset := pStream.Reset(); errReset != nil {
+			//	return errReset
+			//}
 			return err
 		}
 	}
 	streamWrite := bufio.NewWriter(pStream)
 	err = WriteStreamWithBuffer(msgBuf, streamWrite)
 	if err != nil {
-		if errReset := pStream.Reset(); errReset != nil {
-			return errReset
-		}
+		// if errReset := pStream.Reset(); errReset != nil {
+		//		return errReset
+		//	}
 		return fmt.Errorf("fail to write message to stream:%w", err)
 	}
 

@@ -19,12 +19,14 @@ import (
 	"github.com/libp2p/go-libp2p-core/routing"
 	discovery "github.com/libp2p/go-libp2p-discovery"
 	dht "github.com/libp2p/go-libp2p-kad-dht"
+	dhtopts "github.com/libp2p/go-libp2p-kad-dht/opts"
 	swarm "github.com/libp2p/go-libp2p-swarm"
 	"github.com/libp2p/go-libp2p/p2p/protocol/ping"
 	maddr "github.com/multiformats/go-multiaddr"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 
+	"gitlab.com/thorchain/tss/go-tss/conversion"
 	"gitlab.com/thorchain/tss/go-tss/messages"
 )
 
@@ -129,7 +131,8 @@ func (c *Communication) broadcastToPeers(peers []peer.ID, msg []byte, msgID stri
 			continue
 		}
 		if err := c.writeToStream(p, msg, stream.(network.Stream)); nil != err {
-			c.logger.Error().Err(err).Msg("fail to write to stream")
+			pk, _ := conversion.GetPubKeyFromPeerID(p.String())
+			c.logger.Error().Err(err).Msgf("fail to write to stream (%s)", pk)
 		}
 	}
 }
@@ -145,9 +148,9 @@ func (c *Communication) writeToStream(pID peer.ID, msg []byte, stream network.St
 	c.logger.Debug().Msgf(">>>writing messages to peer(%s)", pID)
 	if ApplyDeadline {
 		if err := stream.SetWriteDeadline(time.Now().Add(TimeoutWritePayload)); nil != err {
-			if errReset := stream.Reset(); errReset != nil {
-				return err
-			}
+			// if errReset := stream.Reset(); errReset != nil {
+			//		return err
+			//	}
 			return err
 		}
 	}
@@ -269,7 +272,7 @@ func (c *Communication) startChannel(privKeyBytes []byte) error {
 	// client because we want each peer to maintain its own local copy of the
 	// DHT, so that the bootstrapping node of the DHT can go down without
 	// inhibiting future peer discovery.
-	kademliaDHT, err := dht.New(ctx, h)
+	kademliaDHT, err := dht.New(ctx, h, dhtopts.BucketSize(30))
 	if err != nil {
 		return fmt.Errorf("fail to create DHT: %w", err)
 	}
