@@ -13,14 +13,12 @@ require (
 	github.com/golang/protobuf v1.3.5
 	github.com/gorilla/mux v1.7.3
 	github.com/ipfs/go-log v1.0.4
-	github.com/ipfs/go-todocounter v0.0.1 // indirect
 	github.com/libp2p/go-libp2p v0.9.6
 	github.com/libp2p/go-libp2p-core v0.5.7
 	github.com/libp2p/go-libp2p-discovery v0.4.0
 	github.com/libp2p/go-libp2p-kad-dht v0.8.2
 	github.com/libp2p/go-libp2p-peerstore v0.2.6
 	github.com/libp2p/go-libp2p-quic-transport v0.4.0 // indirect
-	github.com/libp2p/go-libp2p-routing v0.1.0 // indirect
 	github.com/libp2p/go-libp2p-testing v0.1.1
 	github.com/magiconair/properties v1.8.1
 	github.com/multiformats/go-multiaddr v0.2.2
@@ -29,8 +27,6 @@ require (
 	github.com/stretchr/testify v1.6.1
 	github.com/tendermint/btcd v0.1.1
 	github.com/tendermint/tendermint v0.33.3
-	github.com/whyrusleeping/base32 v0.0.0-20170828182744-c30ac30633cc // indirect
-	github.com/whyrusleeping/go-notifier v0.0.0-20170827234753-097c5d47330f // indirect
 	golang.org/x/crypto v0.0.0-20200510223506-06a226fb4e37
 	golang.org/x/lint v0.0.0-20200130185559-910be7a94367 // indirect
 	golang.org/x/tools v0.0.0-20200221224223-e1da425f72fd // indirect
