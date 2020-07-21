@@ -3,10 +3,10 @@ package p2p
 import (
 	"bufio"
 	"context"
-	"encoding/binary"
+	"encoding/hex"
 	"errors"
 	"fmt"
-	"io"
+	"strings"
 	"sync"
 	"time"
 
@@ -61,46 +61,48 @@ func WriteStreamNoBuffer(stream network.Stream, buf []byte) error {
 
 // ReadStreamWithBuffer read data from the given stream
 func ReadStreamWithBuffer(streamReader *bufio.Reader) ([]byte, error) {
-	lengthBytes := make([]byte, LengthHeader)
-	n, err := io.ReadFull(streamReader, lengthBytes)
-	if n != LengthHeader || err != nil {
-		return nil, fmt.Errorf("error in read the message head %w", err)
-	}
-	length := binary.LittleEndian.Uint32(lengthBytes)
-	if length > MaxPayload {
-		return nil, fmt.Errorf("payload length:%d exceed max payload length:%d", length, MaxPayload)
-	}
-
-	fmt.Printf(">>>>we read>>>>>>%d\n", length)
-	dataBuf := make([]byte, length)
-	n, err = io.ReadFull(streamReader, dataBuf)
-	if uint32(n) != length || err != nil {
-		return nil, fmt.Errorf("short read err(%w), we would like to read: %d, however we only read: %d", err, length, n)
-	}
-	return dataBuf, nil
+	//lengthBytes := make([]byte, LengthHeader)
+	//n, err := io.ReadFull(streamReader, lengthBytes)
+	//if n != LengthHeader || err != nil {
+	//	return nil, fmt.Errorf("error in read the message head %w", err)
+	//}
+	//length := binary.LittleEndian.Uint32(lengthBytes)
+	//if length > MaxPayload {
+	//	return nil, fmt.Errorf("payload length:%d exceed max payload length:%d", length, MaxPayload)
+	//}
+	dat, err := streamReader.ReadString('\n')
+	dat = strings.Trim(dat, "\n")
+	dataBuf, err := hex.DecodeString(dat)
+	//dataBuf := make([]byte, length)
+	//n, err = io.ReadFull(streamReader, dataBuf)
+	//if uint32(n) != length || err != nil {
+	//	return nil, fmt.Errorf("short read err(%w), we would like to read: %d, however we only read: %d", err, length, n)
+	//}
+	return dataBuf, err
 }
 
 // WriteStreamWithBuffer write the message to stream
 func WriteStreamWithBuffer(msg []byte, streamWrite *bufio.Writer) error {
-	length := uint32(len(msg))
-	lengthBytes := make([]byte, LengthHeader)
-	binary.LittleEndian.PutUint32(lengthBytes, length)
-	fmt.Printf("#####we write ####%d\n", length)
-	n, err := streamWrite.Write(lengthBytes)
-	if n != LengthHeader || err != nil {
-		return fmt.Errorf("fail to write head: %w", err)
-	}
-	n, err = streamWrite.Write(msg)
+	//length := uint32(len(msg))
+	//lengthBytes := make([]byte, LengthHeader)
+	//binary.LittleEndian.PutUint32(lengthBytes, length)
+	//n, err := streamWrite.Write(lengthBytes)
+	//if n != LengthHeader || err != nil {
+	//	return fmt.Errorf("fail to write head: %w", err)
+	//}
+	sendDat := hex.EncodeToString(msg) + "\n"
+	_, err := streamWrite.WriteString(sendDat)
 	if err != nil {
 		return err
 	}
+
 	err = streamWrite.Flush()
-	if uint32(n) != length || err != nil {
-		if err.Error() == "stream reset" {
-			return err
-		}
-		return fmt.Errorf("short write, we would like to write: %d, however we only write: %d", length, n)
-	}
+	//if uint32(n) != length || err != nil {
+	//	if err.Error() == "stream reset" {
+	//		return err
+	//	}
+	//	return fmt.Errorf("short write, we would like to write: %d, however we only write: %d", length, n)
+	//}
 
 	return nil
 }

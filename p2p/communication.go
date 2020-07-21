@@ -246,11 +246,14 @@ func (c *Communication) startChannel(privKeyBytes []byte) error {
 	}
 
 	addressFactory := func(addrs []maddr.Multiaddr) []maddr.Multiaddr {
+		if c.externalAddr == nil {
+			return addrs
+		}
 		return []maddr.Multiaddr{c.externalAddr}
 	}
 
 	h, err := libp2p.New(ctx,
-		libp2p.ListenAddrs([]maddr.Multiaddr{c.externalAddr}...),
+		libp2p.ListenAddrs([]maddr.Multiaddr{c.listenAddr}...),
 		libp2p.Identity(p2pPriKey),
 		libp2p.AddrsFactory(addressFactory),
 		libp2p.EnableAutoRelay(),
