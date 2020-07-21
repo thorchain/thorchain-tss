@@ -4,9 +4,9 @@ import (
 	"bufio"
 	"context"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"io"
-	"math"
 	"sync"
 	"time"
 
@@ -21,13 +21,43 @@ const (
 	LengthHeader        = 4 // LengthHeader represent how many bytes we used as header
 	TimeoutReadPayload  = time.Second * 40
 	TimeoutWritePayload = time.Second * 40
-	MaxPayload          = math.MaxUint32 // 512kb
+	MaxPayload          = 2 * 1024 * 1024 // 512kb
 
 )
 
 // applyDeadline will be true , and only disable it when we are doing test
 // the reason being the p2p network , mocknet, mock stream doesn't support SetReadDeadline ,SetWriteDeadline feature
 var ApplyDeadline = true
+
+func ReadStreamNoBuffer(stream network.Stream) ([]byte, error) {
+	buf := make([]byte, MaxPayload)
+	n, err := stream.Read(buf)
+	if err != nil {
+		return nil, err
+	}
+	if n == MaxPayload {
+		return nil, errors.New("data too large")
+	}
+	// fmt.Printf("-we get -->%v", buf[:n])
+	//buf2, err := base64.StdEncoding.DecodeString(string(buf[:n]))
+	//if err != nil {
+	//	return nil, err
+	//}
+	fmt.Printf("we receive %d\n", n-1)
+	return buf[:n-1], nil
+}
+
+func WriteStreamNoBuffer(stream network.Stream, buf []byte) error {
+	dat2 := append(buf, 04)
+	n, err := stream.Write(dat2)
+	if err != nil {
+		return err
+	}
+	if n != len(dat2) {
+		return fmt.Errorf("we want to write %d and we have %d data unwrite", len(dat2), len(dat2)-1-n)
+	}
+	return nil
+}
 
 // ReadStreamWithBuffer read data from the given stream
 func ReadStreamWithBuffer(streamReader *bufio.Reader) ([]byte, error) {
@@ -40,6 +70,8 @@ func ReadStreamWithBuffer(streamReader *bufio.Reader) ([]byte, error) {
 	if length > MaxPayload {
 		return nil, fmt.Errorf("payload length:%d exceed max payload length:%d", length, MaxPayload)
 	}
+
+	fmt.Printf(">>>>we read>>>>>>%d\n", length)
 	dataBuf := make([]byte, length)
 	n, err = io.ReadFull(streamReader, dataBuf)
 	if uint32(n) != length || err != nil {
@@ -53,7 +85,7 @@ func WriteStreamWithBuffer(msg []byte, streamWrite *bufio.Writer) error {
 	length := uint32(len(msg))
 	lengthBytes := make([]byte, LengthHeader)
 	binary.LittleEndian.PutUint32(lengthBytes, length)
-
+	fmt.Printf("#####we write ####%d\n", length)
 	n, err := streamWrite.Write(lengthBytes)
 	if n != LengthHeader || err != nil {
 		return fmt.Errorf("fail to write head: %w", err)
