@@ -4,12 +4,11 @@ go 1.14
 
 require (
 	github.com/binance-chain/go-sdk v0.0.0-00010101000000-000000000000
-	github.com/binance-chain/tss-lib v1.3.2
+	github.com/binance-chain/tss-lib v0.0.0-00010101000000-000000000000
 	github.com/btcsuite/btcd v0.20.1-beta
 	github.com/cosmos/cosmos-sdk v0.38.1
 	github.com/deckarep/golang-set v1.7.1
 	github.com/decred/dcrd/dcrec/secp256k1 v1.0.3
-	github.com/gogo/protobuf v1.3.1
 	github.com/golang/protobuf v1.4.2
 	github.com/gorilla/mux v1.7.3
 	github.com/ipfs/go-log v1.0.4
@@ -31,10 +30,11 @@ require (
 	golang.org/x/lint v0.0.0-20200130185559-910be7a94367 // indirect
 	golang.org/x/tools v0.0.0-20200221224223-e1da425f72fd // indirect
 	google.golang.org/grpc v1.28.0-pre // indirect
+	google.golang.org/protobuf v1.25.0
 	gopkg.in/check.v1 v1.0.0-20190902080502-41f04d3bba15
 	honnef.co/go/tools v0.0.1-2020.1.3 // indirect
 )
 
 replace github.com/binance-chain/go-sdk => gitlab.com/thorchain/binance-sdk v1.2.2
 
-replace github.com/binance-chain/tss-lib => gitlab.com/thorchain/tss/tss-lib v0.0.0-20200722171421-1fff782064d6
+replace github.com/binance-chain/tss-lib => gitlab.com/thorchain/tss/tss-lib v0.0.0-20200722175601-f7fe8f4739e4
