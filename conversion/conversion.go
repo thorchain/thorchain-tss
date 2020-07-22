@@ -8,6 +8,7 @@ import (
 	"math/big"
 	"sort"
 	"strconv"
+	"strings"
 
 	"github.com/binance-chain/go-sdk/common/types"
 	"github.com/binance-chain/tss-lib/crypto"
@@ -133,17 +134,11 @@ func GetParties(keys []string, localPartyKey string) ([]*btss.PartyID, *btss.Par
 	return partiesID, localPartyID, nil
 }
 
-func GetKeyGenUicast() string {
-	return messages.KEYGEN2aUnicast
-}
-
 func GetPreviousKeySignUicast(current string) string {
-	switch current {
-	case messages.KEYSIGN1b:
+	if strings.HasSuffix(current, messages.KEYSIGN1b) {
 		return messages.KEYSIGN1aUnicast
-	default:
-		return messages.KEYSIGN2Unicast
 	}
+	return messages.KEYSIGN2Unicast
 }
 
 func isOnCurve(x, y *big.Int) bool {
