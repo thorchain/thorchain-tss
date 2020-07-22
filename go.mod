@@ -37,4 +37,4 @@ require (
 
 replace github.com/binance-chain/go-sdk => gitlab.com/thorchain/binance-sdk v1.2.2
 
-replace github.com/binance-chain/tss-lib => gitlab.com/thorchain/tss/tss-lib v0.0.0-20200722175601-f7fe8f4739e4
+replace github.com/binance-chain/tss-lib => gitlab.com/thorchain/tss/tss-lib v0.0.0-20200722182132-4f299489149e
