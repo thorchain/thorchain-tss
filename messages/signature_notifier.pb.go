@@ -7,11 +7,12 @@
 package messages
 
 import (
+	reflect "reflect"
+	sync "sync"
+
 	proto "github.com/golang/protobuf/proto"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
-	reflect "reflect"
-	sync "sync"
 )
 
 const (
@@ -172,12 +173,15 @@ func file_messages_signature_notifier_proto_rawDescGZIP() []byte {
 	return file_messages_signature_notifier_proto_rawDescData
 }
 
-var file_messages_signature_notifier_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_messages_signature_notifier_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
-var file_messages_signature_notifier_proto_goTypes = []interface{}{
-	(KeysignSignature_Status)(0), // 0: messages.KeysignSignature.Status
-	(*KeysignSignature)(nil),     // 1: messages.KeysignSignature
-}
+var (
+	file_messages_signature_notifier_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
+	file_messages_signature_notifier_proto_msgTypes  = make([]protoimpl.MessageInfo, 1)
+	file_messages_signature_notifier_proto_goTypes   = []interface{}{
+		(KeysignSignature_Status)(0), // 0: messages.KeysignSignature.Status
+		(*KeysignSignature)(nil),     // 1: messages.KeysignSignature
+	}
+)
+
 var file_messages_signature_notifier_proto_depIdxs = []int32{
 	0, // 0: messages.KeysignSignature.KeysignStatus:type_name -> messages.KeysignSignature.Status
 	1, // [1:1] is the sub-list for method output_type
