@@ -239,6 +239,7 @@ func (c *Communication) startChannel(privKeyBytes []byte) error {
 		libp2p.ListenAddrs([]maddr.Multiaddr{c.listenAddr}...),
 		libp2p.Identity(p2pPriKey),
 		libp2p.AddrsFactory(addressFactory),
+		libp2p.EnableAutoRelay(),
 	)
 	if err != nil {
 		return fmt.Errorf("fail to create p2p host: %w", err)
