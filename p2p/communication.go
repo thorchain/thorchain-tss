@@ -242,8 +242,9 @@ func (c *Communication) startChannel(privKeyBytes []byte) error {
 		libp2p.AddrsFactory(addressFactory),
 		libp2p.EnableRelay(),
 		libp2p.EnableAutoRelay(),
-		libp2p.Routing(func(h host.Host) (routing.PeerRouting, error) {
-			return dht.New(ctx, h)
+		libp2p.Routing(func(host host.Host) (routing.PeerRouting, error) {
+			kademliaDHT, err = dht.New(ctx, host)
+			return kademliaDHT, err
 		}),
 	)
 	if err != nil {
