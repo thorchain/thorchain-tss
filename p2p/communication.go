@@ -14,6 +14,7 @@ import (
 	"github.com/libp2p/go-libp2p-core/network"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/libp2p/go-libp2p-core/protocol"
+	"github.com/libp2p/go-libp2p-core/routing"
 	discovery "github.com/libp2p/go-libp2p-discovery"
 	dht "github.com/libp2p/go-libp2p-kad-dht"
 	"github.com/libp2p/go-libp2p/p2p/protocol/ping"
@@ -234,12 +235,16 @@ func (c *Communication) startChannel(privKeyBytes []byte) error {
 		}
 		return addrs
 	}
-
+	var kademliaDHT *dht.IpfsDHT
 	h, err := libp2p.New(ctx,
 		libp2p.ListenAddrs([]maddr.Multiaddr{c.listenAddr}...),
 		libp2p.Identity(p2pPriKey),
 		libp2p.AddrsFactory(addressFactory),
+		libp2p.EnableRelay(),
 		libp2p.EnableAutoRelay(),
+		libp2p.Routing(func(h host.Host) (routing.PeerRouting, error) {
+			return dht.New(ctx, h)
+		}),
 	)
 	if err != nil {
 		return fmt.Errorf("fail to create p2p host: %w", err)
@@ -251,10 +256,7 @@ func (c *Communication) startChannel(privKeyBytes []byte) error {
 	// client because we want each peer to maintain its own local copy of the
 	// DHT, so that the bootstrapping node of the DHT can go down without
 	// inhibiting future peer discovery.
-	kademliaDHT, err := dht.New(ctx, h)
-	if err != nil {
-		return fmt.Errorf("fail to create DHT: %w", err)
-	}
+
 	c.logger.Debug().Msg("Bootstrapping the DHT")
 	if err = kademliaDHT.Bootstrap(ctx); err != nil {
 		return fmt.Errorf("fail to bootstrap DHT: %w", err)
