@@ -3,8 +3,8 @@ module gitlab.com/thorchain/tss/go-tss
 go 1.14
 
 require (
-	github.com/binance-chain/go-sdk v1.2.3
-	github.com/binance-chain/tss-lib v1.3.2
+	github.com/binance-chain/go-sdk v0.0.0-00010101000000-000000000000
+	github.com/binance-chain/tss-lib v0.0.0-00010101000000-000000000000
 	github.com/btcsuite/btcd v0.20.1-beta
 	github.com/cosmos/cosmos-sdk v0.39.0
 	github.com/deckarep/golang-set v1.7.1
@@ -34,6 +34,7 @@ require (
 	honnef.co/go/tools v0.0.1-2020.1.3 // indirect
 )
 
-replace github.com/binance-chain/go-sdk => gitlab.com/thorchain/binance-sdk v1.2.2
-
-replace github.com/binance-chain/tss-lib => gitlab.com/thorchain/tss/tss-lib v0.0.0-20200723071108-d21a17ff2b2e
+replace (
+	github.com/binance-chain/go-sdk => gitlab.com/thorchain/binance-sdk v1.2.2
+	github.com/binance-chain/tss-lib => gitlab.com/thorchain/tss/tss-lib v0.0.0-20200723071108-d21a17ff2b2e
+)
