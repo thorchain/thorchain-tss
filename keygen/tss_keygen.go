@@ -163,8 +163,7 @@ func (tKeyGen *TssKeyGen) processKeyGen(errChan chan struct{},
 				tKeyGen.logger.Error().Msg("fail to start the keygen, the last produced message of this node is none")
 				return nil, errors.New("timeout before shared message is generated")
 			}
-			unicastMsgType := conversion.GetKeyGenUicast()
-			blameNodesUnicast, err := blameMgr.GetUnicastBlame(unicastMsgType)
+			blameNodesUnicast, err := blameMgr.GetUnicastBlame(messages.KEYGEN2aUnicast)
 			if err != nil {
 				tKeyGen.logger.Error().Err(err).Msg("error in get unicast blame")
 			}

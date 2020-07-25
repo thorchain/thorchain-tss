@@ -92,17 +92,17 @@ func (s *MockLocalStateManager) RetrieveP2PAddresses() (addr.AddrList, error) {
 	return nil, os.ErrNotExist
 }
 
-type TssKeysisgnTestSuite struct {
+type TssKeysignTestSuite struct {
 	comms        []*p2p.Communication
 	partyNum     int
 	stateMgrs    []storage.LocalStateManager
 	nodePrivKeys []tcrypto.PrivKey
-	targePeers   []peer.ID
+	targetPeers  []peer.ID
 }
 
-var _ = Suite(&TssKeysisgnTestSuite{})
+var _ = Suite(&TssKeysignTestSuite{})
 
-func (s *TssKeysisgnTestSuite) SetUpSuite(c *C) {
+func (s *TssKeysignTestSuite) SetUpSuite(c *C) {
 	conversion.SetupBech32Prefix()
 	common.InitLog("info", true, "keysign_test")
 
@@ -120,11 +120,11 @@ func (s *TssKeysisgnTestSuite) SetUpSuite(c *C) {
 	for _, el := range targets {
 		p, err := peer.Decode(el)
 		c.Assert(err, IsNil)
-		s.targePeers = append(s.targePeers, p)
+		s.targetPeers = append(s.targetPeers, p)
 	}
 }
 
-func (s *TssKeysisgnTestSuite) SetUpTest(c *C) {
+func (s *TssKeysignTestSuite) SetUpTest(c *C) {
 	if testing.Short() {
 		c.Skip("skip the test")
 		return
@@ -162,7 +162,7 @@ func (s *TssKeysisgnTestSuite) SetUpTest(c *C) {
 	}
 }
 
-func (s *TssKeysisgnTestSuite) TestSignMessage(c *C) {
+func (s *TssKeysignTestSuite) TestSignMessage(c *C) {
 	if testing.Short() {
 		c.Skip("skip the test")
 		return
@@ -232,9 +232,9 @@ func observeAndStop(c *C, tssKeySign *TssKeySign, stopChan chan struct{}) {
 			lastMsg := blameMgr.GetLastMsg()
 			if lastMsg != nil && len(lastMsg.Type()) > 4 {
 				a := lastMsg.Type()
-				index2 := strings.Index(a, "Message")
-				index1 := strings.Index(a, "SignRound")
-				round := a[index1+len("SignRound") : index2]
+				idx := strings.Index(a, "Round")
+				start := idx + len("Round")
+				round := a[start : start+1]
 				roundD, err := strconv.Atoi(round)
 				c.Assert(err, IsNil)
 				if roundD > 4 {
@@ -246,7 +246,7 @@ func observeAndStop(c *C, tssKeySign *TssKeySign, stopChan chan struct{}) {
 	}
 }
 
-func (s *TssKeysisgnTestSuite) TestSignMessageWithStop(c *C) {
+func (s *TssKeysignTestSuite) TestSignMessageWithStop(c *C) {
 	if testing.Short() {
 		c.Skip("skip the test")
 		return
@@ -311,9 +311,9 @@ func rejectSendToOnePeer(c *C, tssKeySign *TssKeySign, stopChan chan struct{}, t
 			lastMsg := tssKeySign.tssCommonStruct.GetBlameMgr().GetLastMsg()
 			if lastMsg != nil && len(lastMsg.Type()) > 6 {
 				a := lastMsg.Type()
-				index2 := strings.Index(a, "Message")
-				index1 := strings.Index(a, "SignRound")
-				round := a[index1+len("SignRound") : index2]
+				idx := strings.Index(a, "Round")
+				start := idx + len("Round")
+				round := a[start : start+1]
 				roundD, err := strconv.Atoi(round)
 				c.Assert(err, IsNil)
 				if roundD > 6 {
@@ -329,7 +329,7 @@ func rejectSendToOnePeer(c *C, tssKeySign *TssKeySign, stopChan chan struct{}, t
 	}
 }
 
-func (s *TssKeysisgnTestSuite) TestSignMessageRejectOnePeer(c *C) {
+func (s *TssKeysignTestSuite) TestSignMessageRejectOnePeer(c *C) {
 	if testing.Short() {
 		c.Skip("skip the test")
 		return
@@ -368,7 +368,7 @@ func (s *TssKeysisgnTestSuite) TestSignMessageRejectOnePeer(c *C) {
 			localState, err := s.stateMgrs[idx].GetLocalState(req.PoolPubKey)
 			c.Assert(err, IsNil)
 			if idx == 1 {
-				go rejectSendToOnePeer(c, keysignIns, stopChan, s.targePeers)
+				go rejectSendToOnePeer(c, keysignIns, stopChan, s.targetPeers)
 			}
 			_, err = keysignIns.SignMessage([]byte(req.Message), localState, req.SignerPubKeys)
 			lastMsg := keysignIns.tssCommonStruct.GetBlameMgr().GetLastMsg()
@@ -379,7 +379,7 @@ func (s *TssKeysisgnTestSuite) TestSignMessageRejectOnePeer(c *C) {
 	wg.Wait()
 }
 
-func (s *TssKeysisgnTestSuite) TearDownTest(c *C) {
+func (s *TssKeysignTestSuite) TearDownTest(c *C) {
 	if testing.Short() {
 		c.Skip("skip the test")
 		return
@@ -390,7 +390,7 @@ func (s *TssKeysisgnTestSuite) TearDownTest(c *C) {
 	}
 }
 
-func (s *TssKeysisgnTestSuite) TestCloseKeySignnotifyChannel(c *C) {
+func (s *TssKeysignTestSuite) TestCloseKeySignnotifyChannel(c *C) {
 	conf := common.TssConfig{}
 	keySignInstance := NewTssKeySign("", conf, nil, nil, "test", s.nodePrivKeys[0], s.comms[0], s.stateMgrs[0])
 

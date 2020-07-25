@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -356,7 +357,11 @@ func (t *TssTestSuite) testVerMsgAndUpdate(c *C, tssCommonStruct *TssCommon, sen
 	// we send the verify message from the the same sender, Tss should only accept the first verify message
 	wrappedVerMsg := fabricateVerMsg(c, msgHash, msgKey)
 	err = tssCommonStruct.ProcessOneMessage(wrappedVerMsg, tssCommonStruct.PartyIDtoP2PID[partiesID[1].Id].String())
-	c.Assert(err, ErrorMatches, "fail to update the message to local party: fail to set bytes to local party: task , party <nil>, round -1: proto: can't skip unknown wire type 4")
+	c.Assert(err, NotNil)
+	// workaround: the rest of this message may weirdly contain a \u00a0 char, so we just match the start
+	if !strings.Contains(err.Error(), "fail to update the message to local party: fail to set bytes to local party: task , party <nil>, round -1: proto") {
+		c.Fatalf("error \"%s\" did not match the expected one", err)
+	}
 }
 
 func findSender(arr []*btss.PartyID) *btss.PartyID {

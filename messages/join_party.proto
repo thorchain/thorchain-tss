@@ -1,4 +1,7 @@
 syntax = "proto3";
+
+option go_package = "gitlab.com/thorchain/tss/go-tss/messages";
+
 package messages;
 
 message JoinPartyRequest {

@@ -77,7 +77,7 @@ func (tKeySign *TssKeySign) SignMessage(msgToSign []byte, localStateItem storage
 	ctx := btss.NewPeerContext(partiesID)
 	params := btss.NewParameters(ctx, localPartyID, len(partiesID), threshold)
 	outCh := make(chan btss.Message, len(partiesID))
-	endCh := make(chan bc.SignatureData, len(partiesID))
+	endCh := make(chan *bc.SignatureData, len(partiesID))
 	errCh := make(chan struct{})
 	m, err := common.MsgToHashInt(msgToSign)
 	if err != nil {
@@ -134,7 +134,7 @@ func (tKeySign *TssKeySign) SignMessage(msgToSign []byte, localStateItem storage
 	return result, nil
 }
 
-func (tKeySign *TssKeySign) processKeySign(errChan chan struct{}, outCh <-chan btss.Message, endCh <-chan bc.SignatureData) (*bc.SignatureData, error) {
+func (tKeySign *TssKeySign) processKeySign(errChan chan struct{}, outCh <-chan btss.Message, endCh <-chan *bc.SignatureData) (*bc.SignatureData, error) {
 	defer tKeySign.logger.Debug().Msg("key sign finished")
 	tKeySign.logger.Debug().Msg("start to read messages from local party")
 	tssConf := tKeySign.tssCommonStruct.GetConf()
@@ -195,7 +195,7 @@ func (tKeySign *TssKeySign) processKeySign(errChan chan struct{}, outCh <-chan b
 			if err := tKeySign.stateManager.SaveAddressBook(address); err != nil {
 				tKeySign.logger.Error().Err(err).Msg("fail to save the peer addresses")
 			}
-			return &msg, nil
+			return msg, nil
 		}
 	}
 }
