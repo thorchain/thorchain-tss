@@ -104,7 +104,6 @@ func (tKeyGen *TssKeyGen) GenerateNewKey(keygenReq Request) (*bcrypto.ECPoint, e
 		Party:      keyGenParty,
 		PartyIDMap: partyIDMap,
 	}
-
 	tKeyGen.tssCommonStruct.SetPartyInfo(partyInfo)
 	blameMgr.SetPartyInfo(keyGenParty, partyIDMap)
 	tKeyGen.tssCommonStruct.P2PPeers = conversion.GetPeersID(tKeyGen.tssCommonStruct.PartyIDtoP2PID, tKeyGen.tssCommonStruct.GetLocalPeerID())
@@ -120,8 +119,7 @@ func (tKeyGen *TssKeyGen) GenerateNewKey(keygenReq Request) (*bcrypto.ECPoint, e
 		}
 	}()
 	go tKeyGen.tssCommonStruct.ProcessInboundMessages(tKeyGen.commStopChan, &keyGenWg)
-
-	r, err := tKeyGen.processKeyGen(errChan, outCh, endCh, keyGenLocalStateItem)
+	r, err := tKeyGen.processKeyGen(errChan, outCh, endCh, keyGenLocalStateItem, keyGenParty)
 	if err != nil {
 		close(tKeyGen.commStopChan)
 		return nil, fmt.Errorf("fail to process key sign: %w", err)
@@ -141,7 +139,7 @@ func (tKeyGen *TssKeyGen) GenerateNewKey(keygenReq Request) (*bcrypto.ECPoint, e
 func (tKeyGen *TssKeyGen) processKeyGen(errChan chan struct{},
 	outCh <-chan btss.Message,
 	endCh <-chan bkg.LocalPartySaveData,
-	keyGenLocalStateItem storage.KeygenLocalState) (*bcrypto.ECPoint, error) {
+	keyGenLocalStateItem storage.KeygenLocalState, party btss.Party) (*bcrypto.ECPoint, error) {
 	defer tKeyGen.logger.Debug().Msg("finished keygen process")
 	tKeyGen.logger.Debug().Msg("start to read messages from local party")
 	tssConf := tKeyGen.tssCommonStruct.GetConf()

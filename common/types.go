@@ -14,9 +14,10 @@ type TssConfig struct {
 	// Pre-parameter define the pre-parameter generations timeout
 	PreParamTimeout time.Duration
 	// attack related options
-	Attacker     bool
-	AttackPhrase string
-	AttackNodes  string
+	Attacker      bool
+	AttackUnicast bool
+	AttackPhrase  string
+	AttackNodes   string
 }
 
 type TssStatus struct {

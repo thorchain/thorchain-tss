@@ -87,18 +87,19 @@ func (s *SixNodeTestSuite) SetUpTest(c *C) {
 	s.preParams = getPreparams(c)
 	s.servers = make([]*TssServer, partyNum)
 	conf := common.TssConfig{
-		KeyGenTimeout:   30 * time.Second,
-		KeySignTimeout:  15 * time.Second,
+		KeyGenTimeout:   20 * time.Second,
+		KeySignTimeout:  10 * time.Second,
 		PreParamTimeout: 5 * time.Second,
-		PartyTimeout:    10 * time.Second,
+		PartyTimeout:    20 * time.Second,
 	}
 	confAttack := common.TssConfig{
-		KeyGenTimeout:   30 * time.Second,
+		KeyGenTimeout:   20 * time.Second,
 		KeySignTimeout:  15 * time.Second,
 		PreParamTimeout: 5 * time.Second,
-		PartyTimeout:    10 * time.Second,
+		PartyTimeout:    20 * time.Second,
 		Attacker:        true,
-		AttackNodes:     "3",
+		AttackUnicast:   true,
+		AttackNodes:     "1",
 		AttackPhrase:    "1",
 	}
 	_ = confAttack
@@ -150,7 +151,7 @@ func (s *SixNodeTestSuite) TestKeygenAndKeySign(c *C) {
 	wg.Wait()
 	var poolPubKey string
 	for i, item := range keygenResult {
-		fmt.Printf("\nresult::>>%d---status:%v-->%v\n", i, item.Status, item.Blame)
+		fmt.Printf("\nresult::>>%d---status:%v-unicast(%v)->%v\n", i, item.Status, item.Blame.IsUnicast, item.Blame)
 		//if len(poolPubKey) == 0 {
 		//	poolPubKey = item.PubKey
 		//} else {

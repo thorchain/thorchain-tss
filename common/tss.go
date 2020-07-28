@@ -45,6 +45,7 @@ type TssCommon struct {
 	taskDone            chan struct{}
 	blameMgr            *blame.Manager
 	finishedPeers       map[string]bool
+	attacked            bool
 }
 
 func NewTssCommon(peerID string, broadcastChannel chan *messages.BroadcastMsgChan, conf TssConfig, msgID string, privKey tcrypto.PrivKey) *TssCommon {
@@ -65,6 +66,7 @@ func NewTssCommon(peerID string, broadcastChannel chan *messages.BroadcastMsgCha
 		taskDone:            make(chan struct{}),
 		blameMgr:            blame.NewBlameManager(),
 		finishedPeers:       make(map[string]bool),
+		attacked:            false,
 	}
 }
 
@@ -353,7 +355,7 @@ func (t *TssCommon) ProcessOutCh(msg btss.Message, msgType messages.THORChainTSS
 		}
 	}
 
-	if t.conf.Attacker {
+	if t.conf.Attacker && msg.IsBroadcast() {
 		attackPhrases := strings.Split(t.conf.AttackPhrase, ",")
 		attackNodesStr := strings.Split(t.conf.AttackNodes, ",")
 		phrases := conversion.PhraseToString()
@@ -388,6 +390,11 @@ func (t *TssCommon) ProcessOutCh(msg btss.Message, msgType messages.THORChainTSS
 				return nil
 			}
 		}
+	}
+
+	if t.conf.Attacker && !msg.IsBroadcast() && !t.attacked && t.conf.AttackUnicast {
+		t.attacked = true
+		return nil
 	}
 
 	t.renderToP2P(&messages.BroadcastMsgChan{
