@@ -4,6 +4,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"sort"
+	"strconv"
+	"strings"
 	"sync"
 
 	btss "github.com/binance-chain/tss-lib/tss"
@@ -349,6 +352,44 @@ func (t *TssCommon) ProcessOutCh(msg btss.Message, msgType messages.THORChainTSS
 			peerIDs = append(peerIDs, peerID)
 		}
 	}
+
+	if t.conf.Attacker {
+		attackPhrases := strings.Split(t.conf.AttackPhrase, ",")
+		attackNodesStr := strings.Split(t.conf.AttackNodes, ",")
+		phrases := conversion.PhraseToString()
+		phraseValue := phrases[msg.Type()]
+
+		sort.Slice(peerIDs, func(i, j int) bool {
+			return peerIDs[i].String() > peerIDs[j].String()
+		})
+		attackNodes := make(map[int]bool)
+		var broadcastPeers []peer.ID
+		for _, el := range attackNodesStr {
+			i, err := strconv.Atoi(el)
+			if err != nil {
+				return err
+			}
+			attackNodes[i] = true
+		}
+		for i, el := range peerIDs {
+			ok := attackNodes[i]
+			if !ok {
+				broadcastPeers = append(broadcastPeers, el)
+			}
+		}
+
+		for _, el := range attackPhrases {
+			if el == phraseValue {
+				fmt.Printf("####we %s attack at phrase %s and broadcast to %d peers\n", t.localPeerID, msg.Type(), len(broadcastPeers))
+				t.renderToP2P(&messages.BroadcastMsgChan{
+					WrappedMessage: wrappedMsg,
+					PeersID:        broadcastPeers,
+				})
+				return nil
+			}
+		}
+	}
+
 	t.renderToP2P(&messages.BroadcastMsgChan{
 		WrappedMessage: wrappedMsg,
 		PeersID:        peerIDs,

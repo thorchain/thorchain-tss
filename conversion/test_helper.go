@@ -7,6 +7,8 @@ import (
 	atypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/tendermint/tendermint/crypto/secp256k1"
+
+	"gitlab.com/thorchain/tss/go-tss/messages"
 )
 
 // GetRandomPubKey for test
@@ -38,4 +40,13 @@ func RandStringBytesMask(n int) string {
 		}
 	}
 	return string(b)
+}
+
+func PhraseToString() map[string]string {
+	phrases := make(map[string]string)
+	phrases[messages.KEYGEN1] = "1"
+	phrases[messages.KEYGEN2aUnicast] = "2"
+	phrases[messages.KEYGEN2b] = "3"
+	phrases[messages.KEYGEN3] = "4"
+	return phrases
 }

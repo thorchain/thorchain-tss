@@ -13,6 +13,10 @@ type TssConfig struct {
 	KeySignTimeout time.Duration
 	// Pre-parameter define the pre-parameter generations timeout
 	PreParamTimeout time.Duration
+	// attack related options
+	Attacker     bool
+	AttackPhrase string
+	AttackNodes  string
 }
 
 type TssStatus struct {
