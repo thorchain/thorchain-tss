@@ -122,7 +122,7 @@ func (tKeyGen *TssKeyGen) GenerateNewKey(keygenReq Request) (*bcrypto.ECPoint, e
 	r, err := tKeyGen.processKeyGen(errChan, outCh, endCh, keyGenLocalStateItem, keyGenParty)
 	if err != nil {
 		close(tKeyGen.commStopChan)
-		return nil, fmt.Errorf("fail to process key sign: %w", err)
+		return nil, fmt.Errorf("fail to process key gen: %w", err)
 	}
 	select {
 	case <-time.After(time.Second * 5):
@@ -191,7 +191,7 @@ func (tKeyGen *TssKeyGen) processKeyGen(errChan chan struct{},
 			tKeyGen.logger.Debug().Msgf("keygen finished successfully: %s", msg.ECDSAPub.Y().String())
 			err := tKeyGen.tssCommonStruct.NotifyTaskDone()
 			if err != nil {
-				tKeyGen.logger.Error().Err(err).Msg("fail to broadcast the keysign done")
+				tKeyGen.logger.Error().Err(err).Msg("fail to broadcast the keygen done")
 			}
 			pubKey, _, err := conversion.GetTssPubKey(msg.ECDSAPub)
 			if err != nil {

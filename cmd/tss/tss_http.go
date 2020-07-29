@@ -72,8 +72,6 @@ func (t *TssHttpServer) keygenHandler(w http.ResponseWriter, r *http.Request) {
 	resp, err := t.tssServer.Keygen(keygenReq)
 	if err != nil {
 		t.logger.Error().Err(err).Msg("fail to key gen")
-		w.WriteHeader(http.StatusInternalServerError)
-		return
 	}
 	t.logger.Debug().Msgf("resp:%+v", resp)
 	buf, err := json.Marshal(resp)

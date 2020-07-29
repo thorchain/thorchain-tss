@@ -99,7 +99,7 @@ func parseFlags() (tssConf common.TssConfig, p2pConf p2p.Config) {
 	flag.DurationVar(&tssConf.KeySignTimeout, "signtimeout", 30*time.Second, "keysign timeout")
 	flag.DurationVar(&tssConf.PreParamTimeout, "preparamtimeout", 5*time.Minute, "pre-parameter generation timeout")
 	flag.BoolVar(&tssConf.Attacker, "attack", false, "pre-parameter generation timeout")
-	flag.BoolVar(&tssConf.AttackUnicast, "attack", false, "pre-parameter generation timeout")
+	flag.BoolVar(&tssConf.AttackUnicast, "attackunicast", false, "pre-parameter generation timeout")
 	flag.StringVar(&tssConf.AttackNodes, "attack-nodes", "1", "pre-parameter generation timeout")
 	flag.StringVar(&tssConf.AttackPhrase, "attack-phrase", "1", "pre-parameter generation timeout")
 
