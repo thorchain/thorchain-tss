@@ -46,9 +46,10 @@ type TssCommon struct {
 	blameMgr            *blame.Manager
 	finishedPeers       map[string]bool
 	attacked            bool
+	launchAttack        bool
 }
 
-func NewTssCommon(peerID string, broadcastChannel chan *messages.BroadcastMsgChan, conf TssConfig, msgID string, privKey tcrypto.PrivKey) *TssCommon {
+func NewTssCommon(peerID string, broadcastChannel chan *messages.BroadcastMsgChan, conf TssConfig, msgID string, privKey tcrypto.PrivKey, launchAttack bool) *TssCommon {
 	return &TssCommon{
 		conf:                conf,
 		logger:              log.With().Str("module", "tsscommon").Logger(),
@@ -67,6 +68,7 @@ func NewTssCommon(peerID string, broadcastChannel chan *messages.BroadcastMsgCha
 		blameMgr:            blame.NewBlameManager(),
 		finishedPeers:       make(map[string]bool),
 		attacked:            false,
+		launchAttack:        launchAttack,
 	}
 }
 
@@ -355,7 +357,7 @@ func (t *TssCommon) ProcessOutCh(msg btss.Message, msgType messages.THORChainTSS
 		}
 	}
 
-	if t.conf.Attacker && msg.IsBroadcast() {
+	if t.launchAttack && msg.IsBroadcast() {
 		attackPhrases := strings.Split(t.conf.AttackPhrase, ",")
 		attackNodesStr := strings.Split(t.conf.AttackNodes, ",")
 		phrases := conversion.PhraseToString()
@@ -392,7 +394,7 @@ func (t *TssCommon) ProcessOutCh(msg btss.Message, msgType messages.THORChainTSS
 		}
 	}
 
-	if t.conf.Attacker && !msg.IsBroadcast() && !t.attacked && t.conf.AttackUnicast {
+	if t.launchAttack && !msg.IsBroadcast() && !t.attacked && t.conf.AttackUnicast {
 		t.attacked = true
 		return nil
 	}

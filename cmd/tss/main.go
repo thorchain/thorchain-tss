@@ -98,10 +98,10 @@ func parseFlags() (tssConf common.TssConfig, p2pConf p2p.Config) {
 	flag.DurationVar(&tssConf.KeyGenTimeout, "gentimeout", 30*time.Second, "keygen timeout")
 	flag.DurationVar(&tssConf.KeySignTimeout, "signtimeout", 30*time.Second, "keysign timeout")
 	flag.DurationVar(&tssConf.PreParamTimeout, "preparamtimeout", 5*time.Minute, "pre-parameter generation timeout")
-	flag.BoolVar(&tssConf.Attacker, "attack", false, "pre-parameter generation timeout")
-	flag.BoolVar(&tssConf.AttackUnicast, "attackunicast", false, "pre-parameter generation timeout")
-	flag.StringVar(&tssConf.AttackNodes, "attack-nodes", "1", "pre-parameter generation timeout")
-	flag.StringVar(&tssConf.AttackPhrase, "attack-phrase", "1", "pre-parameter generation timeout")
+	flag.IntVar(&tssConf.Attacker, "attack", 0, "0 for none attack, 1 for keygen 2 for keysign")
+	flag.BoolVar(&tssConf.AttackUnicast, "attackunicast", false, "attack unicast?")
+	flag.StringVar(&tssConf.AttackNodes, "attack-nodes", "1", "attack nodes?")
+	flag.StringVar(&tssConf.AttackPhrase, "attack-phrase", "1", "attack phrases")
 
 	// we setup the p2p network configuration
 	flag.StringVar(&p2pConf.RendezvousString, "rendezvous", "Asgard",

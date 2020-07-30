@@ -48,5 +48,16 @@ func PhraseToString() map[string]string {
 	phrases[messages.KEYGEN2aUnicast] = "2"
 	phrases[messages.KEYGEN2b] = "3"
 	phrases[messages.KEYGEN3] = "4"
+	phrases[messages.KEYSIGN1aUnicast] = "5"
+	phrases[messages.KEYSIGN1b] = "6"
+	phrases[messages.KEYSIGN2Unicast] = "7"
+	phrases[messages.KEYSIGN3] = "8"
+	phrases[messages.KEYSIGN4] = "9"
+	phrases[messages.KEYSIGN5] = "10"
+	phrases[messages.KEYSIGN6] = "11"
+	phrases[messages.KEYSIGN7] = "12"
+	phrases[messages.KEYSIGN8] = "13"
+	phrases[messages.KEYSIGN9] = "14"
+
 	return phrases
 }

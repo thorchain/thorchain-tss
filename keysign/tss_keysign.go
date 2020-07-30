@@ -37,9 +37,13 @@ func NewTssKeySign(localP2PID string,
 	broadcastChan chan *messages.BroadcastMsgChan,
 	stopChan chan struct{}, msgID string, privKey tcrypto.PrivKey, p2pComm *p2p.Communication, stateManager storage.LocalStateManager) *TssKeySign {
 	logItems := []string{"keySign", msgID}
+	attack := false
+	if conf.Attacker == 2 {
+		attack = true
+	}
 	return &TssKeySign{
 		logger:          log.With().Strs("module", logItems).Logger(),
-		tssCommonStruct: common.NewTssCommon(localP2PID, broadcastChan, conf, msgID, privKey),
+		tssCommonStruct: common.NewTssCommon(localP2PID, broadcastChan, conf, msgID, privKey, attack),
 		stopChan:        stopChan,
 		localParty:      nil,
 		commStopChan:    make(chan struct{}),

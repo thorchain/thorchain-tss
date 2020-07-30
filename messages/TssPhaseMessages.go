@@ -8,4 +8,11 @@ const (
 	KEYSIGN1aUnicast = "SignRound1Message1"
 	KEYSIGN1b        = "SignRound1Message2"
 	KEYSIGN2Unicast  = "SignRound2Message"
+	KEYSIGN3         = "SignRound3Message"
+	KEYSIGN4         = "SignRound4Message"
+	KEYSIGN5         = "SignRound5Message"
+	KEYSIGN6         = "SignRound6Message"
+	KEYSIGN7         = "SignRound7Message"
+	KEYSIGN8         = "SignRound8Message"
+	KEYSIGN9         = "SignRound9Message"
 )

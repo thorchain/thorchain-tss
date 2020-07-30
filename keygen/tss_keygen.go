@@ -43,13 +43,17 @@ func NewTssKeyGen(localP2PID string,
 	stateManager storage.LocalStateManager,
 	privateKey tcrypto.PrivKey,
 	p2pComm *p2p.Communication) *TssKeyGen {
+	attack := false
+	if conf.Attacker == 1 {
+		attack = true
+	}
 	return &TssKeyGen{
 		logger: log.With().
 			Str("module", "keygen").
 			Str("msgID", msgID).Logger(),
 		localNodePubKey: localNodePubKey,
 		preParams:       preParam,
-		tssCommonStruct: common.NewTssCommon(localP2PID, broadcastChan, conf, msgID, privateKey),
+		tssCommonStruct: common.NewTssCommon(localP2PID, broadcastChan, conf, msgID, privateKey, attack),
 		stopChan:        stopChan,
 		localParty:      nil,
 		stateManager:    stateManager,
