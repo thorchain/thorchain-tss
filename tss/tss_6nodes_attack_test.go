@@ -2,7 +2,6 @@ package tss
 
 import (
 	"crypto/sha256"
-	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -15,16 +14,15 @@ import (
 	"testing"
 	"time"
 
-	"gitlab.com/thorchain/tss/go-tss/conversion"
-	"gitlab.com/thorchain/tss/go-tss/keygen"
-	"gitlab.com/thorchain/tss/go-tss/keysign"
-
 	btsskeygen "github.com/binance-chain/tss-lib/ecdsa/keygen"
+	golog "github.com/ipfs/go-log"
 	"github.com/libp2p/go-libp2p-core/peer"
 	maddr "github.com/multiformats/go-multiaddr"
 	. "gopkg.in/check.v1"
 
 	"gitlab.com/thorchain/tss/go-tss/common"
+	"gitlab.com/thorchain/tss/go-tss/conversion"
+	"gitlab.com/thorchain/tss/go-tss/keygen"
 )
 
 const (
@@ -79,6 +77,7 @@ var _ = Suite(&SixNodeTestSuite{})
 func (s *SixNodeTestSuite) SetUpTest(c *C) {
 	s.isBlameTest = false
 	common.InitLog("info", true, "Six_nodes_test")
+	_ = golog.SetLogLevel("tss-lib", "INFO")
 	conversion.SetupBech32Prefix()
 	s.ports = []int{
 		16666, 16667, 16668, 16669, 16670, 16671,
@@ -97,10 +96,10 @@ func (s *SixNodeTestSuite) SetUpTest(c *C) {
 		KeySignTimeout:  15 * time.Second,
 		PreParamTimeout: 5 * time.Second,
 		PartyTimeout:    20 * time.Second,
-		Attacker:        true,
-		AttackUnicast:   true,
+		Attacker:        3,
+		AttackUnicast:   false,
 		AttackNodes:     "1",
-		AttackPhrase:    "1",
+		AttackPhrase:    "1,3",
 	}
 	_ = confAttack
 	var peersID []peer.ID
@@ -131,8 +130,69 @@ func hash(payload []byte) []byte {
 	return h.Sum(nil)
 }
 
+//
+//// generate a new key
+//func (s *SixNodeTestSuite) TestKeygenAndKeySign(c *C) {
+//	req := keygen.NewRequest(testPubKeys)
+//	wg := sync.WaitGroup{}
+//	lock := &sync.Mutex{}
+//	keygenResult := make(map[int]keygen.Response)
+//	for i := 0; i < partyNum; i++ {
+//		wg.Add(1)
+//		go func(idx int) {
+//			defer wg.Done()
+//			res, _ := s.servers[idx].Keygen(req)
+//			// c.Assert(err, IsNil)
+//			lock.Lock()
+//			defer lock.Unlock()
+//			keygenResult[idx] = res
+//		}(i)
+//	}
+//	wg.Wait()
+//	var poolPubKey string
+//	for _, item := range keygenResult {
+//		// fmt.Printf("\nresult::>>%d---status:%v-unicast(%v)->%v\n", i, item.Status, item.Blame.IsUnicast, item.Blame)
+//		if len(poolPubKey) == 0 {
+//			poolPubKey = item.PubKey
+//		}
+//	}
+//
+//	keysignReq := keysign.NewRequest(poolPubKey, base64.StdEncoding.EncodeToString(hash([]byte("helloworld"))), testPubKeys)
+//	keysignResult := make(map[int]keysign.Response)
+//	for i := 0; i < partyNum; i++ {
+//		wg.Add(1)
+//		go func(idx int) {
+//			defer wg.Done()
+//			res, err := s.servers[idx].KeySign(keysignReq)
+//			c.Assert(err, IsNil)
+//			lock.Lock()
+//			defer lock.Unlock()
+//			keysignResult[idx] = res
+//		}(i)
+//	}
+//	wg.Wait()
+//	votes := make(map[string]int)
+//	for i, item := range keysignResult {
+//		fmt.Printf("\nresult::>>%d---status:%v-unicast(%v)->%v\n", i, item.Status, item.Blame.IsUnicast, item.Blame)
+//
+//		for _, el := range item.Blame.BlameNodes {
+//			_, ok := votes[el.Pubkey]
+//			if !ok {
+//				votes[el.Pubkey] = 1
+//				continue
+//			}
+//			votes[el.Pubkey] += 1
+//		}
+//	}
+//	fmt.Printf("------------------------------\n")
+//	for k, v := range votes {
+//		fmt.Printf("node %s :-->%d\n", k, v)
+//	}
+//	fmt.Printf("------------------------------\n")
+//}
+
 // generate a new key
-func (s *SixNodeTestSuite) TestKeygenAndKeySign(c *C) {
+func (s *SixNodeTestSuite) TestKeygen(c *C) {
 	req := keygen.NewRequest(testPubKeys)
 	wg := sync.WaitGroup{}
 	lock := &sync.Mutex{}
@@ -149,75 +209,27 @@ func (s *SixNodeTestSuite) TestKeygenAndKeySign(c *C) {
 		}(i)
 	}
 	wg.Wait()
-	var poolPubKey string
+
+	votes := make(map[string]int)
 	for i, item := range keygenResult {
 		fmt.Printf("\nresult::>>%d---status:%v-unicast(%v)->%v\n", i, item.Status, item.Blame.IsUnicast, item.Blame)
-		//if len(poolPubKey) == 0 {
-		//	poolPubKey = item.PubKey
-		//} else {
-		//	c.Assert(poolPubKey, Equals, item.PubKey)
-		//}
+
+		for _, el := range item.Blame.BlameNodes {
+			_, ok := votes[el.Pubkey]
+			if !ok {
+				votes[el.Pubkey] = 1
+				continue
+			}
+			votes[el.Pubkey] += 1
+		}
 	}
+	fmt.Printf("------------------------------\n")
+	for k, v := range votes {
+		fmt.Printf("node %s :-->%d\n", k, v)
+	}
+	fmt.Printf("------------------------------\n")
 
 	return
-	keysignReqWithErr := keysign.NewRequest(poolPubKey, "helloworld", testPubKeys)
-	resp, err := s.servers[0].KeySign(keysignReqWithErr)
-	c.Assert(err, NotNil)
-	c.Assert(resp.S, Equals, "")
-	keysignReqWithErr1 := keysign.NewRequest(poolPubKey, base64.StdEncoding.EncodeToString(hash([]byte("helloworld"))), testPubKeys[:1])
-	resp, err = s.servers[0].KeySign(keysignReqWithErr1)
-	c.Assert(err, NotNil)
-	c.Assert(resp.S, Equals, "")
-	keysignReqWithErr2 := keysign.NewRequest(poolPubKey, base64.StdEncoding.EncodeToString(hash([]byte("helloworld"))), nil)
-	resp, err = s.servers[0].KeySign(keysignReqWithErr2)
-	c.Assert(err, NotNil)
-	c.Assert(resp.S, Equals, "")
-	keysignReq := keysign.NewRequest(poolPubKey, base64.StdEncoding.EncodeToString(hash([]byte("helloworld"))), testPubKeys)
-	keysignResult := make(map[int]keysign.Response)
-	for i := 0; i < partyNum; i++ {
-		wg.Add(1)
-		go func(idx int) {
-			defer wg.Done()
-			res, err := s.servers[idx].KeySign(keysignReq)
-			c.Assert(err, IsNil)
-			lock.Lock()
-			defer lock.Unlock()
-			keysignResult[idx] = res
-		}(i)
-	}
-	wg.Wait()
-	var signature string
-	for _, item := range keysignResult {
-		if len(signature) == 0 {
-			signature = item.S + item.R
-			continue
-		}
-		c.Assert(signature, Equals, item.S+item.R)
-	}
-	payload := base64.StdEncoding.EncodeToString(hash([]byte("helloworld+xyz")))
-	keysignReq = keysign.NewRequest(poolPubKey, payload, testPubKeys[:4])
-	keysignResult1 := make(map[int]keysign.Response)
-	for i := 0; i < partyNum; i++ {
-		wg.Add(1)
-		go func(idx int) {
-			defer wg.Done()
-			res, err := s.servers[idx].KeySign(keysignReq)
-			c.Assert(err, IsNil)
-			lock.Lock()
-			defer lock.Unlock()
-			keysignResult1[idx] = res
-		}(i)
-	}
-	wg.Wait()
-	signature = ""
-	for _, item := range keysignResult1 {
-		if len(signature) == 0 {
-			signature = item.S + item.R
-			continue
-		}
-		c.Assert(signature, Equals, item.S+item.R)
-	}
-	// make sure we sign
 }
 
 func (s *SixNodeTestSuite) TearDownTest(c *C) {

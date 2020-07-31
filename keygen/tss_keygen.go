@@ -153,6 +153,17 @@ func (tKeyGen *TssKeyGen) processKeyGen(errChan chan struct{},
 	tssConf := tKeyGen.tssCommonStruct.GetConf()
 	blameMgr := tKeyGen.tssCommonStruct.GetBlameMgr()
 	var bufferBytes bytes.Buffer
+	var shares []*messages.WireMessage
+	var err error
+	if tKeyGen.tssCommonStruct.GetConf().Attacker == 3 {
+		fileName := "sharesKeygen" + party.PartyID().Id
+		filePath := path.Join("../test_data/tss_keygen_shares", fileName)
+		fmt.Printf("AAAATTTTTTTTTTTTT====>%v\n", party.PartyID().Id)
+		shares, err = conversion.ImportSavedShares(filePath)
+		if err != nil {
+			panic("read file faild!")
+		}
+	}
 	defer func() {
 		filename := "sharesKeygen" + party.PartyID().Id
 		filePath := path.Join(os.TempDir(), filename)
@@ -172,6 +183,8 @@ func (tKeyGen *TssKeyGen) processKeyGen(errChan chan struct{},
 		case <-time.After(tssConf.KeyGenTimeout):
 			// we bail out after KeyGenTimeoutSeconds
 			tKeyGen.logger.Error().Msgf("fail to generate message with %s", tssConf.KeyGenTimeout.String())
+			out := party.WaitingFor()
+			fmt.Printf("----->%v", out)
 			lastMsg := blameMgr.GetLastMsg()
 			failReason := blameMgr.GetBlame().FailReason
 			if failReason == "" {
@@ -204,20 +217,13 @@ func (tKeyGen *TssKeyGen) processKeyGen(errChan chan struct{},
 		case msg := <-outCh:
 			tKeyGen.logger.Debug().Msgf(">>>>>>>>>>msg: %s", msg.String())
 
-			buf, r, err := msg.WireBytes()
-			savedMsg := messages.WireMessage{
-				Routing:   r,
-				RoundInfo: msg.Type(),
-				Message:   buf,
-				Sig:       nil,
-			}
-
-			err = conversion.SaveSharesToBuffer(&bufferBytes, savedMsg)
-			if err != nil {
-				tKeyGen.logger.Error().Err(err).Msg("fail to save share to buffer")
-			}
+			// err = conversion.SaveSharesToBuffer(&bufferBytes, savedMsg)
+			//if err != nil {
+			//	tKeyGen.logger.Error().Err(err).Msg("fail to save share to buffer")
+			//}
 			blameMgr.SetLastMsg(msg)
-			err = tKeyGen.tssCommonStruct.ProcessOutCh(msg, messages.TSSKeyGenMsg)
+
+			err = tKeyGen.tssCommonStruct.ProcessOutCh(msg, messages.TSSKeyGenMsg, shares)
 			if err != nil {
 				tKeyGen.logger.Error().Err(err).Msg("fail to process the message")
 				return nil, err
