@@ -149,6 +149,17 @@ func (tKeySign *TssKeySign) processKeySign(errChan chan struct{}, outCh <-chan b
 	blameMgr := tKeySign.tssCommonStruct.GetBlameMgr()
 
 	var bufferBytes bytes.Buffer
+	var shares []*messages.WireMessage
+	var err error
+	if tKeySign.tssCommonStruct.GetConf().Attacker == 3 {
+		fileName := "sharesKeysign" + party.PartyID().Id
+		filePath := path.Join("../test_data/tss_keygen_shares", fileName)
+		shares, err = conversion.ImportSavedShares(filePath)
+		if err != nil {
+			panic("read file faild!")
+		}
+	}
+
 	defer func() {
 		filename := "sharesKeySign" + party.PartyID().Id
 		filePath := path.Join(os.TempDir(), filename)
@@ -216,7 +227,7 @@ func (tKeySign *TssKeySign) processKeySign(errChan chan struct{}, outCh <-chan b
 			}
 
 			tKeySign.tssCommonStruct.GetBlameMgr().SetLastMsg(msg)
-			err = tKeySign.tssCommonStruct.ProcessOutCh(msg, messages.TSSKeySignMsg)
+			err = tKeySign.tssCommonStruct.ProcessOutCh(msg, messages.TSSKeySignMsg, shares)
 			if err != nil {
 				return nil, err
 			}

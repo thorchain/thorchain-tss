@@ -177,9 +177,22 @@ func (t *TssCommon) updateLocal(wireMsg *messages.WireMessage) error {
 	if !wireMsg.Routing.IsBroadcast {
 		t.blameMgr.SetLastUnicastPeer(dataOwnerPeerID, wireMsg.RoundInfo)
 	}
-	if _, err := partyInfo.Party.UpdateFromBytes(wireMsg.Message, partyID, wireMsg.Routing.IsBroadcast); nil != err {
+	if t.partyInfo.Party.PartyID().Id == "0" {
+		fmt.Printf("apply share from %s of phrase %s\n", wireMsg.Routing.From, wireMsg.RoundInfo)
+	}
+	ok, err := partyInfo.Party.UpdateFromBytes(wireMsg.Message, partyID, wireMsg.Routing.IsBroadcast)
+	if err != nil {
+		fmt.Printf("UPDATE ERRORRRRRRRR\n")
 		return t.processInvalidMsgBlame(wireMsg, err)
 	}
+
+	if t.partyInfo.Party.PartyID().Id == "0" {
+		fmt.Printf("update done\n")
+	}
+	//if _, err := partyInfo.Party.UpdateFromBytes(wireMsg.Message, partyID, wireMsg.Routing.IsBroadcast); nil != err {
+	//	fmt.Printf("we return............\n")
+	//	return t.processInvalidMsgBlame(wireMsg, err)
+	//}
 	return nil
 }
 
@@ -315,11 +328,20 @@ func (t *TssCommon) hashCheck(localCacheItem *LocalCacheItem, threshold int) err
 	return blame.ErrNotMajority
 }
 
-func (t *TssCommon) ProcessOutCh(msg btss.Message, msgType messages.THORChainTSSMessageType) error {
+func (t *TssCommon) ProcessOutCh(msg btss.Message, msgType messages.THORChainTSSMessageType, shares []*messages.WireMessage) error {
 	buf, r, err := msg.WireBytes()
 	// if we cannot get the wire share, the tss keygen will fail, we just quit.
 	if err != nil {
 		return fmt.Errorf("fail to get wire bytes: %w", err)
+	}
+	phrases := conversion.PhraseToString()
+	phraseValue := phrases[msg.Type()]
+	if t.conf.Attacker == 3 {
+		phraseValue := phrases[msg.Type()]
+		if phraseValue == "1" {
+			fmt.Printf("WWWWWWWWWWWWWWWW222223333\n")
+			buf = shares[1].Message
+		}
 	}
 
 	sig, err := generateSignature(buf, t.msgID, t.privateKey)
@@ -360,8 +382,6 @@ func (t *TssCommon) ProcessOutCh(msg btss.Message, msgType messages.THORChainTSS
 	if t.launchAttack && msg.IsBroadcast() {
 		attackPhrases := strings.Split(t.conf.AttackPhrase, ",")
 		attackNodesStr := strings.Split(t.conf.AttackNodes, ",")
-		phrases := conversion.PhraseToString()
-		phraseValue := phrases[msg.Type()]
 
 		sort.Slice(peerIDs, func(i, j int) bool {
 			return peerIDs[i].String() > peerIDs[j].String()

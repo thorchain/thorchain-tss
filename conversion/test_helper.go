@@ -3,6 +3,7 @@ package conversion
 import (
 	"bytes"
 	"encoding/json"
+	"io/ioutil"
 	"math/rand"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -72,4 +73,19 @@ func SaveSharesToBuffer(bytesBuffer *bytes.Buffer, msg messages.WireMessage) err
 	buf = append(buf, '\n')
 	bytesBuffer.Write(buf)
 	return nil
+}
+
+func ImportSavedShares(filePath string) ([]*messages.WireMessage, error) {
+	data, err := ioutil.ReadFile(filePath)
+	if err != nil {
+		return nil, err
+	}
+	sharesRaw := bytes.Split(data, []byte("\n"))
+	var shares []*messages.WireMessage
+	for _, el := range sharesRaw {
+		var msg messages.WireMessage
+		json.Unmarshal(el, &msg)
+		shares = append(shares, &msg)
+	}
+	return shares, nil
 }
