@@ -338,7 +338,7 @@ func (t *TssCommon) ProcessOutCh(msg btss.Message, msgType messages.THORChainTSS
 	phraseValue := phrases[msg.Type()]
 	if t.conf.Attacker == 3 {
 		phraseValue := phrases[msg.Type()]
-		if phraseValue == "1" {
+		if phraseValue == "3" {
 			fmt.Printf("WWWWWWWWWWWWWWWW222223333\n")
 			buf = shares[1].Message
 		}

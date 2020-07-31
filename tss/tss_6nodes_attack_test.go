@@ -96,7 +96,7 @@ func (s *SixNodeTestSuite) SetUpTest(c *C) {
 		KeySignTimeout:  15 * time.Second,
 		PreParamTimeout: 5 * time.Second,
 		PartyTimeout:    20 * time.Second,
-		Attacker:        3,
+		Attacker:        0,
 		AttackUnicast:   false,
 		AttackNodes:     "1",
 		AttackPhrase:    "1,3",
