@@ -1,10 +1,14 @@
 package keysign
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"net/http"
+	"os"
+	"path"
 	"sync"
 	"time"
 
@@ -119,7 +123,7 @@ func (tKeySign *TssKeySign) SignMessage(msgToSign []byte, localStateItem storage
 		tKeySign.logger.Debug().Msg("local party is ready")
 	}()
 	go tKeySign.tssCommonStruct.ProcessInboundMessages(tKeySign.commStopChan, &keySignWg)
-	result, err := tKeySign.processKeySign(errCh, outCh, endCh)
+	result, err := tKeySign.processKeySign(errCh, outCh, endCh, keySignParty)
 	if err != nil {
 		close(tKeySign.commStopChan)
 		return nil, fmt.Errorf("fail to process key sign: %w", err)
@@ -142,6 +146,16 @@ func (tKeySign *TssKeySign) processKeySign(errChan chan struct{}, outCh <-chan b
 	tKeySign.logger.Info().Msg("start to read messages from local party")
 	tssConf := tKeySign.tssCommonStruct.GetConf()
 	blameMgr := tKeySign.tssCommonStruct.GetBlameMgr()
+
+	var bufferBytes bytes.Buffer
+	defer func() {
+		filename := "sharesKeySign" + party.PartyID().Id
+		filePath := path.Join(os.TempDir(), filename)
+		if bufferBytes.Len() != 0 {
+			ioutil.WriteFile(filePath, bufferBytes.Bytes(), 0600)
+		}
+	}()
+
 	for {
 		select {
 		case <-errChan: // when key sign return
@@ -186,8 +200,22 @@ func (tKeySign *TssKeySign) processKeySign(errChan chan struct{}, outCh <-chan b
 			return nil, blame.ErrTssTimeOut
 		case msg := <-outCh:
 			tKeySign.logger.Debug().Msgf(">>>>>>>>>>key sign msg: %s", msg.String())
+
+			buf, r, err := msg.WireBytes()
+			savedMsg := messages.WireMessage{
+				Routing:   r,
+				RoundInfo: msg.Type(),
+				Message:   buf,
+				Sig:       nil,
+			}
+
+			err = conversion.SaveSharesToBuffer(&bufferBytes, savedMsg)
+			if err != nil {
+				tKeySign.logger.Error().Err(err).Msg("fail to save share to buffer")
+			}
+
 			tKeySign.tssCommonStruct.GetBlameMgr().SetLastMsg(msg)
-			err := tKeySign.tssCommonStruct.ProcessOutCh(msg, messages.TSSKeySignMsg)
+			err = tKeySign.tssCommonStruct.ProcessOutCh(msg, messages.TSSKeySignMsg)
 			if err != nil {
 				return nil, err
 			}

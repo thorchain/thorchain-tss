@@ -1,6 +1,8 @@
 package conversion
 
 import (
+	"bytes"
+	"encoding/json"
 	"math/rand"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -60,4 +62,14 @@ func PhraseToString() map[string]string {
 	phrases[messages.KEYSIGN9] = "14"
 
 	return phrases
+}
+
+func SaveSharesToBuffer(bytesBuffer *bytes.Buffer, msg messages.WireMessage) error {
+	buf, err := json.Marshal(msg)
+	if err != nil {
+		return err
+	}
+	buf = append(buf, '\n')
+	bytesBuffer.Write(buf)
+	return nil
 }

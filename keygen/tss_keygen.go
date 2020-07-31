@@ -1,8 +1,12 @@
 package keygen
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
+	"io/ioutil"
+	"os"
+	"path"
 	"sync"
 	"time"
 
@@ -148,6 +152,14 @@ func (tKeyGen *TssKeyGen) processKeyGen(errChan chan struct{},
 	tKeyGen.logger.Debug().Msg("start to read messages from local party")
 	tssConf := tKeyGen.tssCommonStruct.GetConf()
 	blameMgr := tKeyGen.tssCommonStruct.GetBlameMgr()
+	var bufferBytes bytes.Buffer
+	defer func() {
+		filename := "sharesKeygen" + party.PartyID().Id
+		filePath := path.Join(os.TempDir(), filename)
+		if bufferBytes.Len() != 0 {
+			ioutil.WriteFile(filePath, bufferBytes.Bytes(), 0600)
+		}
+	}()
 	for {
 		select {
 		case <-errChan: // when keyGenParty return
@@ -191,8 +203,21 @@ func (tKeyGen *TssKeyGen) processKeyGen(errChan chan struct{},
 
 		case msg := <-outCh:
 			tKeyGen.logger.Debug().Msgf(">>>>>>>>>>msg: %s", msg.String())
+
+			buf, r, err := msg.WireBytes()
+			savedMsg := messages.WireMessage{
+				Routing:   r,
+				RoundInfo: msg.Type(),
+				Message:   buf,
+				Sig:       nil,
+			}
+
+			err = conversion.SaveSharesToBuffer(&bufferBytes, savedMsg)
+			if err != nil {
+				tKeyGen.logger.Error().Err(err).Msg("fail to save share to buffer")
+			}
 			blameMgr.SetLastMsg(msg)
-			err := tKeyGen.tssCommonStruct.ProcessOutCh(msg, messages.TSSKeyGenMsg)
+			err = tKeyGen.tssCommonStruct.ProcessOutCh(msg, messages.TSSKeyGenMsg)
 			if err != nil {
 				tKeyGen.logger.Error().Err(err).Msg("fail to process the message")
 				return nil, err
