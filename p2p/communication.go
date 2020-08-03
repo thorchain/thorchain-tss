@@ -103,6 +103,7 @@ func (c *Communication) Broadcast(peers []peer.ID, msg []byte, msgID string) {
 	}
 	// try to discover all peers and then broadcast the messages
 	c.wg.Add(1)
+
 	go c.broadcastToPeers(peers, msg, msgID)
 }
 

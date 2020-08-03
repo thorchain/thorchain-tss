@@ -187,7 +187,7 @@ func (tKeySign *TssKeySign) processKeySign(errChan chan struct{}, outCh <-chan b
 
 		case msg := <-endCh:
 			tKeySign.logger.Debug().Msg("we have done the key sign")
-			err := tKeySign.tssCommonStruct.NotifyTaskDone()
+			err := tKeySign.tssCommonStruct.NotifyTaskDone(true, blame.Blame{})
 			if err != nil {
 				tKeySign.logger.Error().Err(err).Msg("fail to broadcast the keysign done")
 			}

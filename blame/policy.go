@@ -127,3 +127,31 @@ func (m *Manager) TssWrongShareBlame(wiredMsg *messages.WireMessage) (string, er
 	}
 	return pk, nil
 }
+
+func (m *Manager) GetGlobalBlame() string {
+	votes := make(map[string]int)
+	m.peerBlame.Store("self", *m.blame)
+	m.peerBlame.Range(func(_, value interface{}) bool {
+		blame := value.(Blame)
+		for _, el := range blame.BlameNodes {
+			pubKey := el.Pubkey
+			_, ok := votes[pubKey]
+			if ok {
+				votes[pubKey] += 1
+				continue
+			}
+			votes[pubKey] = 1
+		}
+		return true
+	})
+	fmt.Printf("----#####map######-----%v\n", votes)
+	c := 0
+	blameNode := ""
+	for k, v := range votes {
+		if v > c {
+			c = v
+			blameNode = k
+		}
+	}
+	return blameNode
+}

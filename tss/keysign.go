@@ -132,10 +132,14 @@ func (t *TssServer) KeySign(req keysign.Request) (keysign.Response, error) {
 		t.logger.Error().Err(err).Msg("err in keysign")
 		atomic.AddUint64(&t.Status.FailedKeySign, 1)
 		t.broadcastKeysignFailure(msgID, signers)
-		blameNodes := *blameMgr.GetBlame()
+		blameNodes := blameMgr.GetBlame()
+		globalBlameNode := blameMgr.GetGlobalBlame()
+		blameNodes.BlameNodes = []blame.Node{{
+			Pubkey: globalBlameNode,
+		}}
 		return keysign.Response{
 			Status: common.Fail,
-			Blame:  blameNodes,
+			Blame:  *blameNodes,
 		}, nil
 	}
 

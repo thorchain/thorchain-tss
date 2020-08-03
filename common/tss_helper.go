@@ -22,6 +22,8 @@ import (
 	"github.com/rs/zerolog/log"
 	tcrypto "github.com/tendermint/tendermint/crypto"
 
+	"gitlab.com/thorchain/tss/go-tss/blame"
+	//"gitlab.com/thorchain/tss/go-tss/blame"
 	"gitlab.com/thorchain/tss/go-tss/messages"
 )
 
@@ -133,8 +135,8 @@ func getHighestFreq(confirmedList map[string]string) (string, int, error) {
 	return sFreq[0][0], freqInt, nil
 }
 
-func (t *TssCommon) NotifyTaskDone() error {
-	msg := messages.TssTaskNotifier{TaskDone: true}
+func (t *TssCommon) NotifyTaskDone(taskDone bool, blameNodes blame.Blame) error {
+	msg := blame.TssTaskNotifier{TaskDone: taskDone, BlameNodes: blameNodes}
 	data, err := json.Marshal(msg)
 	if err != nil {
 		return fmt.Errorf("fail to marshal the request body %w", err)

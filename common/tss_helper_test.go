@@ -6,6 +6,7 @@ import (
 	"github.com/tendermint/tendermint/crypto/secp256k1"
 	. "gopkg.in/check.v1"
 
+	"gitlab.com/thorchain/tss/go-tss/blame"
 	"gitlab.com/thorchain/tss/go-tss/conversion"
 	"gitlab.com/thorchain/tss/go-tss/messages"
 )
@@ -60,7 +61,7 @@ func (t *tssHelpSuite) TestTssCommon_NotifyTaskDone(c *C) {
 	c.Assert(err, IsNil)
 	sk := secp256k1.GenPrivKey()
 	tssCommon := NewTssCommon(peerID.String(), nil, TssConfig{}, "message-id", sk)
-	err = tssCommon.NotifyTaskDone()
+	err = tssCommon.NotifyTaskDone(true, blame.Blame{})
 	c.Assert(err, IsNil)
 }
 

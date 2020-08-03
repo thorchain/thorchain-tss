@@ -24,6 +24,7 @@ import (
 	maddr "github.com/multiformats/go-multiaddr"
 	. "gopkg.in/check.v1"
 
+	"gitlab.com/thorchain/tss/go-tss/blame"
 	"gitlab.com/thorchain/tss/go-tss/common"
 	"gitlab.com/thorchain/tss/go-tss/conversion"
 	"gitlab.com/thorchain/tss/go-tss/messages"
@@ -282,7 +283,7 @@ func (s *TssKeygenTestSuite) TestCloseKeyGennotifyChannel(c *C) {
 	stateManager := &storage.MockLocalStateManager{}
 	keyGenInstance := NewTssKeyGen("", conf, "", nil, nil, nil, "test", stateManager, s.nodePrivKeys[0], s.comms[0])
 
-	taskDone := messages.TssTaskNotifier{TaskDone: true}
+	taskDone := blame.TssTaskNotifier{TaskDone: true}
 	taskDoneBytes, err := json.Marshal(taskDone)
 	c.Assert(err, IsNil)
 

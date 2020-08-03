@@ -82,7 +82,3 @@ type TssControl struct {
 	RequestType THORChainTSSMessageType `json:"request_type"`
 	Msg         *WireMessage            `json:"message_body"`
 }
-
-type TssTaskNotifier struct {
-	TaskDone bool `json:"task_done"`
-}

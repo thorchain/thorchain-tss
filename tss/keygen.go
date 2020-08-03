@@ -1,7 +1,10 @@
 package tss
 
 import (
+	"fmt"
+	"sync"
 	"sync/atomic"
+	"time"
 
 	"gitlab.com/thorchain/tss/go-tss/blame"
 	"gitlab.com/thorchain/tss/go-tss/common"
@@ -61,7 +64,26 @@ func (t *TssServer) Keygen(req keygen.Request) (keygen.Response, error) {
 		if err != nil {
 			t.logger.Err(err).Msg("fail to get peers to blame")
 		}
-		// make sure we blame the leader as well
+		fmt.Println("doneeeeee???")
+		var wg sync.WaitGroup
+		finishChan := make(chan struct{})
+		wg.Add(1)
+		go keygenInstance.GetTssCommonStruct().ProcessJoinPartyTaskDone(finishChan, &wg, len(onlinePeers)-1)
+		time.Sleep(time.Second * 5)
+		keygenInstance.GetTssCommonStruct().P2PPeers = onlinePeers
+		keygenInstance.GetTssCommonStruct().NotifyTaskDone(false, blameNodes)
+		select {
+		case <-time.After(time.Second * 5):
+			close(finishChan)
+
+		case <-keygenInstance.GetTssCommonStruct().GetTaskDone():
+			close(finishChan)
+		}
+		wg.Wait()
+		globalBlameNode := blameMgr.GetGlobalBlame()
+		blameNodes.BlameNodes = []blame.Node{{
+			Pubkey: globalBlameNode,
+		}}
 		t.logger.Error().Err(err).Msgf("fail to form keysign party with online:%v", onlinePeers)
 		return keygen.Response{
 			Status: common.Fail,
@@ -79,8 +101,13 @@ func (t *TssServer) Keygen(req keygen.Request) (keygen.Response, error) {
 	if err != nil {
 		atomic.AddUint64(&t.Status.FailedKeyGen, 1)
 		t.logger.Error().Err(err).Msg("err in keygen")
-		blameNodes := *blameMgr.GetBlame()
-		return keygen.NewResponse("", "", common.Fail, blameNodes), err
+		blameNodes := blameMgr.GetBlame()
+		globalBlameNode := blameMgr.GetGlobalBlame()
+		// replace the local blame nodes with the global one
+		blameNodes.BlameNodes = []blame.Node{{
+			Pubkey: globalBlameNode,
+		}}
+		return keygen.NewResponse("", "", common.Fail, *blameNodes), err
 	} else {
 		atomic.AddUint64(&t.Status.SucKeyGen, 1)
 	}

@@ -40,3 +40,8 @@ type Blame struct {
 	IsUnicast  bool   `json:"is_broadcast"`
 	BlameNodes []Node `json:"blame_peers,omitempty"`
 }
+
+type TssTaskNotifier struct {
+	TaskDone   bool `json:"task_done"`
+	BlameNodes Blame
+}

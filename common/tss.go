@@ -218,24 +218,25 @@ func (t *TssCommon) ProcessOneMessage(wrappedMsg *messages.WrappedMessage, peerI
 			return t.processVerMsg(&bMsg, wrappedMsg.MessageType)
 		}
 	case messages.TSSTaskDone:
-		var wireMsg messages.TssTaskNotifier
+		var wireMsg blame.TssTaskNotifier
 		err := json.Unmarshal(wrappedMsg.Payload, &wireMsg)
 		if err != nil {
 			t.logger.Error().Err(err).Msg("fail to unmarshal the notify message")
 			return nil
 		}
-		if wireMsg.TaskDone {
-			// if we have already logged this node, we return to avoid close of a close channel
-			if t.finishedPeers[peerID] {
-				return fmt.Errorf("duplicated notification from peer %s ignored", peerID)
-			}
-			t.finishedPeers[peerID] = true
-			if len(t.finishedPeers) == len(t.partyInfo.PartyIDMap)-1 {
-				t.logger.Debug().Msg("we get the confirm of the nodes that generate the signature")
-				close(t.taskDone)
-			}
-			return nil
+		// if we have already logged this node, we return to avoid close of a close channel
+		if t.finishedPeers[peerID] {
+			return fmt.Errorf("duplicated notification from peer %s ignored", peerID)
 		}
+		t.finishedPeers[peerID] = true
+		if !wireMsg.TaskDone {
+			t.blameMgr.StorePeerBlame(peerID, wireMsg.BlameNodes)
+		}
+		if len(t.finishedPeers) == len(t.partyInfo.PartyIDMap)-1 {
+			t.logger.Debug().Msg("we get the confirm of the nodes that generate the signature")
+			close(t.taskDone)
+		}
+		return nil
 	case messages.TSSControlMsg:
 		var wireMsg messages.TssControl
 		if err := json.Unmarshal(wrappedMsg.Payload, &wireMsg); nil != err {
@@ -651,10 +652,51 @@ func (t *TssCommon) ProcessInboundMessages(finishChan chan struct{}, wg *sync.Wa
 				t.logger.Error().Err(err).Msg("fail to unmarshal wrapped message bytes")
 				continue
 			}
-
 			err := t.ProcessOneMessage(&wrappedMsg, m.PeerID.String())
 			if err != nil {
 				t.logger.Error().Err(err).Msg("fail to process the received message")
+			}
+
+		}
+	}
+}
+
+func (t *TssCommon) ProcessJoinPartyTaskDone(finishChan chan struct{}, wg *sync.WaitGroup, peerNum int) {
+	defer wg.Done()
+	for {
+		select {
+		case <-finishChan:
+			return
+		case m, ok := <-t.TssMsg:
+			if !ok {
+				return
+			}
+			var wrappedMsg messages.WrappedMessage
+			if err := json.Unmarshal(m.Payload, &wrappedMsg); nil != err {
+				t.logger.Error().Err(err).Msg("fail to unmarshal wrapped message bytes")
+				continue
+			}
+			if wrappedMsg.MessageType != messages.TSSTaskDone {
+				continue
+			}
+			var wireMsg blame.TssTaskNotifier
+			err := json.Unmarshal(wrappedMsg.Payload, &wireMsg)
+			if err != nil {
+				t.logger.Error().Err(err).Msg("fail to unmarshal the notify message")
+				continue
+			}
+			// if we have already logged this node, we return to avoid close of a close channel
+			if t.finishedPeers[m.PeerID.String()] {
+				t.logger.Warn().Msgf("duplicated notification from peer %s ignored", m.PeerID.String())
+				continue
+			}
+			t.finishedPeers[m.PeerID.String()] = true
+			if !wireMsg.TaskDone {
+				t.blameMgr.StorePeerBlame(m.PeerID.String(), wireMsg.BlameNodes)
+			}
+			if len(t.finishedPeers) == peerNum {
+				fmt.Print("ddddddd1111111\n")
+				close(t.taskDone)
 			}
 
 		}

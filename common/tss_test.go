@@ -296,7 +296,7 @@ func (t *TssTestSuite) testProcessControlMsg(c *C, tssCommonStruct *TssCommon) {
 }
 
 func (t *TssTestSuite) testProcessTaskDone(c *C, tssCommonStruct *TssCommon) {
-	taskDone := messages.TssTaskNotifier{TaskDone: true}
+	taskDone := blame.TssTaskNotifier{TaskDone: true}
 	marshaledMsg, err := json.Marshal(taskDone)
 	c.Assert(err, IsNil)
 	wrappedMsg := messages.WrappedMessage{

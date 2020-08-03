@@ -19,6 +19,7 @@ type Manager struct {
 	PartyIDtoP2PID  map[string]peer.ID
 	lastMsgLocker   *sync.RWMutex
 	lastMsg         btss.Message
+	peerBlame       *sync.Map
 }
 
 func NewBlameManager() *Manager {
@@ -31,7 +32,12 @@ func NewBlameManager() *Manager {
 		roundMgr:        NewTssRoundMgr(),
 		blame:           &Blame{},
 		lastMsgLocker:   &sync.RWMutex{},
+		peerBlame:       &sync.Map{},
 	}
+}
+
+func (m *Manager) StorePeerBlame(pID string, blame Blame) {
+	m.peerBlame.Store(pID, blame)
 }
 
 func (m *Manager) GetBlame() *Blame {

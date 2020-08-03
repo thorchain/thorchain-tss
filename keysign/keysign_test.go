@@ -19,6 +19,7 @@ import (
 
 	"github.com/rs/zerolog/log"
 
+	"gitlab.com/thorchain/tss/go-tss/blame"
 	"gitlab.com/thorchain/tss/go-tss/conversion"
 
 	bc "github.com/binance-chain/tss-lib/common"
@@ -394,7 +395,7 @@ func (s *TssKeysignTestSuite) TestCloseKeySignnotifyChannel(c *C) {
 	conf := common.TssConfig{}
 	keySignInstance := NewTssKeySign("", conf, nil, nil, "test", s.nodePrivKeys[0], s.comms[0], s.stateMgrs[0])
 
-	taskDone := messages.TssTaskNotifier{TaskDone: true}
+	taskDone := blame.TssTaskNotifier{TaskDone: true}
 	taskDoneBytes, err := json.Marshal(taskDone)
 	c.Assert(err, IsNil)
 
