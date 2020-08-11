@@ -13,8 +13,6 @@ const (
 	KEYSIGN5         = "SignRound5Message"
 	KEYSIGN6         = "SignRound6Message"
 	KEYSIGN7         = "SignRound7Message"
-	KEYSIGN8         = "SignRound8Message"
-	KEYSIGN9         = "SignRound9Message"
 	TSSKEYGENROUNDS  = 4
-	TSSKEYSIGNROUNDS = 10
+	TSSKEYSIGNROUNDS = 8
 )
