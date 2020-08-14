@@ -268,13 +268,6 @@ func GetMsgRound(wireMsg *messages.WireMessage, partyID *btss.PartyID) (string, 
 
 	case *signing.SignRound7Message:
 		return "7," + messages.KEYSIGN7, nil
-
-	case *signing.SignRound8Message:
-		return "8," + messages.KEYSIGN8, nil
-
-	case *signing.SignRound9Message:
-		return "9," + messages.KEYSIGN9, nil
-
 	default:
 		return "", nil
 	}

@@ -22,7 +22,7 @@ import (
 	"gitlab.com/thorchain/tss/go-tss/storage"
 )
 
-const TSSKEYSIGNROUNDS = 10
+const TSSKEYSIGNROUNDS = 8
 
 type TssKeySign struct {
 	logger          zerolog.Logger
