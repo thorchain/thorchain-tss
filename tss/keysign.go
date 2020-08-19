@@ -13,6 +13,7 @@ import (
 	"gitlab.com/thorchain/tss/go-tss/common"
 	"gitlab.com/thorchain/tss/go-tss/conversion"
 	"gitlab.com/thorchain/tss/go-tss/keysign"
+	"gitlab.com/thorchain/tss/go-tss/keysign/ecdsa"
 	"gitlab.com/thorchain/tss/go-tss/messages"
 )
 
@@ -26,8 +27,8 @@ func (t *TssServer) KeySign(req keysign.Request) (keysign.Response, error) {
 	if err != nil {
 		return emptyResp, err
 	}
-
-	keysignInstance := keysign.NewTssKeySign(
+	var keysignInstance keysign.TssKeySign
+	ecdsakeysignInstance := ecdsa.NewTssKeySign(
 		t.p2pCommunication.GetLocalPeerID(),
 		t.conf,
 		t.p2pCommunication.BroadcastMsgChan,
@@ -37,7 +38,7 @@ func (t *TssServer) KeySign(req keysign.Request) (keysign.Response, error) {
 		t.p2pCommunication,
 		t.stateManager,
 	)
-
+	keysignInstance = ecdsakeysignInstance
 	keySignChannels := keysignInstance.GetTssKeySignChannels()
 	t.p2pCommunication.SetSubscribe(messages.TSSKeySignMsg, msgID, keySignChannels)
 	t.p2pCommunication.SetSubscribe(messages.TSSKeySignVerMsg, msgID, keySignChannels)

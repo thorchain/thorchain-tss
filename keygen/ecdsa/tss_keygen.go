@@ -22,7 +22,7 @@ import (
 	"gitlab.com/thorchain/tss/go-tss/storage"
 )
 
-type TssKeyGen struct {
+type ECDSAKeyGen struct {
 	logger          zerolog.Logger
 	localNodePubKey string
 	preParams       *bkg.LocalPreParams
@@ -43,8 +43,8 @@ func NewTssKeyGen(localP2PID string,
 	msgID string,
 	stateManager storage.LocalStateManager,
 	privateKey tcrypto.PrivKey,
-	p2pComm *p2p.Communication) *TssKeyGen {
-	return &TssKeyGen{
+	p2pComm *p2p.Communication) *ECDSAKeyGen {
+	return &ECDSAKeyGen{
 		logger: log.With().
 			Str("module", "keygen").
 			Str("msgID", msgID).Logger(),
@@ -59,15 +59,15 @@ func NewTssKeyGen(localP2PID string,
 	}
 }
 
-func (tKeyGen *TssKeyGen) GetTssKeyGenChannels() chan *p2p.Message {
+func (tKeyGen *ECDSAKeyGen) GetTssKeyGenChannels() chan *p2p.Message {
 	return tKeyGen.tssCommonStruct.TssMsg
 }
 
-func (tKeyGen *TssKeyGen) GetTssCommonStruct() *common.TssCommon {
+func (tKeyGen *ECDSAKeyGen) GetTssCommonStruct() *common.TssCommon {
 	return tKeyGen.tssCommonStruct
 }
 
-func (tKeyGen *TssKeyGen) GenerateNewKey(keygenReq keygen.Request) (*bcrypto.ECPoint, error) {
+func (tKeyGen *ECDSAKeyGen) GenerateNewKey(keygenReq keygen.Request) (*bcrypto.ECPoint, error) {
 	partiesID, localPartyID, err := conversion.GetParties(keygenReq.Keys, tKeyGen.localNodePubKey)
 	if err != nil {
 		return nil, fmt.Errorf("fail to get keygen parties: %w", err)
@@ -139,7 +139,7 @@ func (tKeyGen *TssKeyGen) GenerateNewKey(keygenReq keygen.Request) (*bcrypto.ECP
 	return r, err
 }
 
-func (tKeyGen *TssKeyGen) processKeyGen(errChan chan struct{},
+func (tKeyGen *ECDSAKeyGen) processKeyGen(errChan chan struct{},
 	outCh <-chan btss.Message,
 	endCh <-chan bkg.LocalPartySaveData,
 	keyGenLocalStateItem storage.KeygenLocalState) (*bcrypto.ECPoint, error) {
