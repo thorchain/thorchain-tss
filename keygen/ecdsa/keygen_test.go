@@ -138,7 +138,7 @@ func (s *TssKeygenTestSuite) TearDownTest(c *C) {
 
 func getPreparams(c *C) []*btsskeygen.LocalPreParams {
 	const (
-		testFileLocation = "../test_data"
+		testFileLocation = "../../test_data"
 		preParamTestFile = "preParam_test.data"
 	)
 	var preParamArray []*btsskeygen.LocalPreParams

@@ -20,7 +20,8 @@ func (t *TssServer) Keygen(req keygen.Request) (ecdsa.Response, error) {
 		return ecdsa.Response{}, err
 	}
 
-	keygenInstance := ecdsa.NewTssKeyGen(
+	var keygenInstance keygen.TssKeyGen
+	ecdsaKeygen := ecdsa.NewTssKeyGen(
 		t.p2pCommunication.GetLocalPeerID(),
 		t.conf,
 		t.localNodePubKey,
@@ -32,6 +33,7 @@ func (t *TssServer) Keygen(req keygen.Request) (ecdsa.Response, error) {
 		t.privateKey,
 		t.p2pCommunication)
 
+	keygenInstance = ecdsaKeygen
 	keygenMsgChannel := keygenInstance.GetTssKeyGenChannels()
 	t.p2pCommunication.SetSubscribe(messages.TSSKeyGenMsg, msgID, keygenMsgChannel)
 	t.p2pCommunication.SetSubscribe(messages.TSSKeyGenVerMsg, msgID, keygenMsgChannel)
