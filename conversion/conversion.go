@@ -15,6 +15,8 @@ import (
 	"github.com/binance-chain/tss-lib/crypto"
 	"github.com/btcsuite/btcd/btcec"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/decred/dcrd/dcrec/edwards/v2"
+	"github.com/tendermint/tendermint/crypto/ed25519"
 
 	btss "github.com/binance-chain/tss-lib/tss"
 	crypto2 "github.com/libp2p/go-libp2p-core/crypto"
@@ -143,17 +145,34 @@ func GetPreviousKeySignUicast(current string) string {
 }
 
 func isOnCurve(x, y *big.Int) bool {
-	curve := btcec.S256()
+	curve := btss.EC()
 	return curve.IsOnCurve(x, y)
 }
 
-func GetTssPubKey(pubKeyPoint *crypto.ECPoint) (string, types.AccAddress, error) {
+func GetTssPubKeyEDDSA(pubKeyPoint *crypto.ECPoint) (string, types.AccAddress, error) {
+	// we check whether the point is on curve according to Kudelski report
+	if pubKeyPoint == nil || !isOnCurve(pubKeyPoint.X(), pubKeyPoint.Y()) {
+		return "", types.AccAddress{}, errors.New("invalid points")
+	}
+	tssPubKey := edwards.PublicKey{
+		Curve: edwards.Edwards(),
+		X:     pubKeyPoint.X(),
+		Y:     pubKeyPoint.Y(),
+	}
+	var pubKeyCompressed ed25519.PubKeyEd25519
+	copy(pubKeyCompressed[:], tssPubKey.SerializeCompressed())
+	pubKey, err := sdk.Bech32ifyPubKey(sdk.Bech32PubKeyTypeAccPub, pubKeyCompressed)
+	addr := types.AccAddress(pubKeyCompressed.Address().Bytes())
+	return pubKey, addr, err
+}
+
+func GetTssPubKeyECDSA(pubKeyPoint *crypto.ECPoint) (string, types.AccAddress, error) {
 	// we check whether the point is on curve according to Kudelski report
 	if pubKeyPoint == nil || !isOnCurve(pubKeyPoint.X(), pubKeyPoint.Y()) {
 		return "", types.AccAddress{}, errors.New("invalid points")
 	}
 	tssPubKey := btcec.PublicKey{
-		Curve: btcec.S256(),
+		Curve: btss.EC(),
 		X:     pubKeyPoint.X(),
 		Y:     pubKeyPoint.Y(),
 	}

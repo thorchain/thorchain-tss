@@ -10,6 +10,7 @@ require (
 	github.com/cosmos/cosmos-sdk v0.39.0
 	github.com/davidlazar/go-crypto v0.0.0-20200604182044-b73af7476f6c // indirect
 	github.com/deckarep/golang-set v1.7.1
+	github.com/decred/dcrd/dcrec/edwards/v2 v2.0.0
 	github.com/decred/dcrd/dcrec/secp256k1 v1.0.3
 	github.com/golang/mock v1.4.0 // indirect
 	github.com/golang/protobuf v1.4.2
@@ -44,6 +45,7 @@ require (
 )
 
 replace (
+	github.com/agl/ed25519 => github.com/binance-chain/edwards25519 v0.0.0-20200305024217-f36fc4b53d43
 	github.com/binance-chain/go-sdk => gitlab.com/thorchain/binance-sdk v1.2.2
-	github.com/binance-chain/tss-lib => gitlab.com/thorchain/tss/tss-lib v0.0.0-20200723071108-d21a17ff2b2e
+	github.com/binance-chain/tss-lib => gitlab.com/thorchain/tss/tss-lib v0.0.0-20200822105600-736b37c27e25
 )

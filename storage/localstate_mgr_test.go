@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -46,9 +47,11 @@ func (s *FileStateMgrTestSuite) TestNewFileStateMgr(c *C) {
 }
 
 func (s *FileStateMgrTestSuite) TestSaveLocalState(c *C) {
+	marshaledLocalData, err := json.Marshal(keygen.NewLocalPartySaveData(5))
+	c.Assert(err, IsNil)
 	stateItem := KeygenLocalState{
 		PubKey:    "wasdfasdfasdfasdfasdfasdf",
-		LocalData: keygen.NewLocalPartySaveData(5),
+		LocalData: marshaledLocalData,
 		ParticipantKeys: []string{
 			"A", "B", "C",
 		},

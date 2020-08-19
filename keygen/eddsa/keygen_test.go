@@ -1,10 +1,9 @@
-package keygen
+package eddsa
 
 import (
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
-	"io/ioutil"
 	"os"
 	"path"
 	"sort"
@@ -19,13 +18,13 @@ import (
 	tcrypto "github.com/tendermint/tendermint/crypto"
 	"github.com/tendermint/tendermint/crypto/secp256k1"
 
-	btsskeygen "github.com/binance-chain/tss-lib/ecdsa/keygen"
 	btss "github.com/binance-chain/tss-lib/tss"
 	maddr "github.com/multiformats/go-multiaddr"
 	. "gopkg.in/check.v1"
 
 	"gitlab.com/thorchain/tss/go-tss/common"
 	"gitlab.com/thorchain/tss/go-tss/conversion"
+	"gitlab.com/thorchain/tss/go-tss/keygen"
 	"gitlab.com/thorchain/tss/go-tss/messages"
 	"gitlab.com/thorchain/tss/go-tss/p2p"
 	"gitlab.com/thorchain/tss/go-tss/storage"
@@ -60,18 +59,17 @@ var (
 
 func TestPackage(t *testing.T) { TestingT(t) }
 
-type TssKeygenTestSuite struct {
+type EddsaKeygenTestSuite struct {
 	comms        []*p2p.Communication
-	preParams    []*btsskeygen.LocalPreParams
 	partyNum     int
 	stateMgrs    []storage.LocalStateManager
 	nodePrivKeys []tcrypto.PrivKey
 	targePeers   []peer.ID
 }
 
-var _ = Suite(&TssKeygenTestSuite{})
+var _ = Suite(&EddsaKeygenTestSuite{})
 
-func (s *TssKeygenTestSuite) SetUpSuite(c *C) {
+func (s *EddsaKeygenTestSuite) SetUpSuite(c *C) {
 	common.InitLog("info", true, "keygen_test")
 	conversion.SetupBech32Prefix()
 	for _, el := range testNodePrivkey {
@@ -92,16 +90,8 @@ func (s *TssKeygenTestSuite) SetUpSuite(c *C) {
 	}
 }
 
-func (s *TssKeygenTestSuite) TearDownSuite(c *C) {
-	for i, _ := range s.comms {
-		tempFilePath := path.Join(os.TempDir(), strconv.Itoa(i))
-		err := os.RemoveAll(tempFilePath)
-		c.Assert(err, IsNil)
-	}
-}
-
 // SetUpTest set up environment for test key gen
-func (s *TssKeygenTestSuite) SetUpTest(c *C) {
+func (s *EddsaKeygenTestSuite) SetUpTest(c *C) {
 	ports := []int{
 		18666, 18667, 18668, 18669,
 	}
@@ -111,7 +101,6 @@ func (s *TssKeygenTestSuite) SetUpTest(c *C) {
 	bootstrapPeer := "/ip4/127.0.0.1/tcp/18666/p2p/16Uiu2HAm4TmEzUqy3q3Dv7HvdoSboHk5sFj2FH3npiN5vDbJC6gh"
 	multiAddr, err := maddr.NewMultiaddr(bootstrapPeer)
 	c.Assert(err, IsNil)
-	s.preParams = getPreparams(c)
 	for i := 0; i < s.partyNum; i++ {
 		buf, err := base64.StdEncoding.DecodeString(testPriKeyArr[i])
 		c.Assert(err, IsNil)
@@ -136,35 +125,16 @@ func (s *TssKeygenTestSuite) SetUpTest(c *C) {
 	}
 }
 
-func (s *TssKeygenTestSuite) TearDownTest(c *C) {
+func (s *EddsaKeygenTestSuite) TearDownTest(c *C) {
 	time.Sleep(time.Second)
 	for _, item := range s.comms {
 		c.Assert(item.Stop(), IsNil)
 	}
 }
 
-func getPreparams(c *C) []*btsskeygen.LocalPreParams {
-	const (
-		testFileLocation = "../test_data"
-		preParamTestFile = "preParam_test.data"
-	)
-	var preParamArray []*btsskeygen.LocalPreParams
-	buf, err := ioutil.ReadFile(path.Join(testFileLocation, preParamTestFile))
-	c.Assert(err, IsNil)
-	preParamsStr := strings.Split(string(buf), "\n")
-	for _, item := range preParamsStr {
-		var preParam btsskeygen.LocalPreParams
-		val, err := hex.DecodeString(item)
-		c.Assert(err, IsNil)
-		c.Assert(json.Unmarshal(val, &preParam), IsNil)
-		preParamArray = append(preParamArray, &preParam)
-	}
-	return preParamArray
-}
-
-func (s *TssKeygenTestSuite) TestGenerateNewKey(c *C) {
+func (s *EddsaKeygenTestSuite) TestGenerateNewKey(c *C) {
 	sort.Strings(testPubKeys)
-	req := NewRequest(testPubKeys, 10, "")
+	req := keygen.NewRequest(testPubKeys, "eddsa")
 	messageID, err := common.MsgToHashString([]byte(strings.Join(req.Keys, "")))
 	c.Assert(err, IsNil)
 	conf := common.TssConfig{
@@ -188,7 +158,6 @@ func (s *TssKeygenTestSuite) TestGenerateNewKey(c *C) {
 				localPubKey,
 				comm.BroadcastMsgChan,
 				stopChan,
-				s.preParams[idx],
 				messageID,
 				s.stateMgrs[idx], s.nodePrivKeys[idx], s.comms[idx])
 			c.Assert(keygenInstance, NotNil)
@@ -215,80 +184,22 @@ func (s *TssKeygenTestSuite) TestGenerateNewKey(c *C) {
 	}
 }
 
-func (s *TssKeygenTestSuite) TestGenerateNewKeyWithStop(c *C) {
-	sort.Strings(testPubKeys)
-	req := NewRequest(testPubKeys, 10, "")
-	messageID, err := common.MsgToHashString([]byte(strings.Join(req.Keys, "")))
-	c.Assert(err, IsNil)
-	conf := common.TssConfig{
-		KeyGenTimeout:   10 * time.Second,
-		KeySignTimeout:  10 * time.Second,
-		PreParamTimeout: 5 * time.Second,
-	}
-	wg := sync.WaitGroup{}
-
-	for i := 0; i < s.partyNum; i++ {
-		wg.Add(1)
-		go func(idx int) {
-			defer wg.Done()
-			comm := s.comms[idx]
-			stopChan := make(chan struct{})
-			localPubKey := testPubKeys[idx]
-			keygenInstance := NewTssKeyGen(
-				comm.GetLocalPeerID(),
-				conf,
-				localPubKey,
-				comm.BroadcastMsgChan,
-				stopChan,
-				s.preParams[idx],
-				messageID,
-				s.stateMgrs[idx],
-				s.nodePrivKeys[idx], s.comms[idx])
-			c.Assert(keygenInstance, NotNil)
-			keygenMsgChannel := keygenInstance.GetTssKeyGenChannels()
-			comm.SetSubscribe(messages.TSSKeyGenMsg, messageID, keygenMsgChannel)
-			comm.SetSubscribe(messages.TSSKeyGenVerMsg, messageID, keygenMsgChannel)
-			comm.SetSubscribe(messages.TSSControlMsg, messageID, keygenMsgChannel)
-			comm.SetSubscribe(messages.TSSTaskDone, messageID, keygenMsgChannel)
-			defer comm.CancelSubscribe(messages.TSSKeyGenMsg, messageID)
-			defer comm.CancelSubscribe(messages.TSSKeyGenVerMsg, messageID)
-			defer comm.CancelSubscribe(messages.TSSControlMsg, messageID)
-			defer comm.CancelSubscribe(messages.TSSTaskDone, messageID)
-			if idx == 1 {
-				go func() {
-					time.Sleep(time.Millisecond * 200)
-					close(keygenInstance.stopChan)
-				}()
-			}
-			_, err := keygenInstance.GenerateNewKey(req)
-			c.Assert(err, NotNil)
-			// we skip the node 1 as we force it to stop
-			if idx != 1 {
-				blames := keygenInstance.GetTssCommonStruct().GetBlameMgr().GetBlame().BlameNodes
-				c.Assert(blames, HasLen, 1)
-				c.Assert(blames[0].Pubkey, Equals, testPubKeys[1])
-			}
-		}(i)
-	}
-	wg.Wait()
-}
-
-func (s *TssKeygenTestSuite) TestKeyGenWithError(c *C) {
-	req := Request{
+func (s *EddsaKeygenTestSuite) TestKeyGenWithError(c *C) {
+	req := keygen.Request{
 		Keys: testPubKeys[:],
 	}
 	conf := common.TssConfig{}
 	stateManager := &storage.MockLocalStateManager{}
-	keyGenInstance := NewTssKeyGen("", conf, "", nil, nil, nil, "test", stateManager, s.nodePrivKeys[0], nil)
+	keyGenInstance := NewTssKeyGen("", conf, "", nil, nil, "test", stateManager, s.nodePrivKeys[0], nil)
 	generatedKey, err := keyGenInstance.GenerateNewKey(req)
 	c.Assert(err, NotNil)
 	c.Assert(generatedKey, IsNil)
 }
 
-func (s *TssKeygenTestSuite) TestCloseKeyGennotifyChannel(c *C) {
+func (s *EddsaKeygenTestSuite) TestCloseKeyGennotifyChannel(c *C) {
 	conf := common.TssConfig{}
 	stateManager := &storage.MockLocalStateManager{}
-	keyGenInstance := NewTssKeyGen("", conf, "", nil, nil, nil, "test", stateManager, s.nodePrivKeys[0], s.comms[0])
+	keyGenInstance := NewTssKeyGen("", conf, "", nil, nil, "test", stateManager, s.nodePrivKeys[0], s.comms[0])
 
 	taskDone := messages.TssTaskNotifier{TaskDone: true}
 	taskDoneBytes, err := json.Marshal(taskDone)
