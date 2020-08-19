@@ -1,4 +1,4 @@
-package keygen
+package ecdsa
 
 import (
 	"encoding/base64"
@@ -26,6 +26,7 @@ import (
 
 	"gitlab.com/thorchain/tss/go-tss/common"
 	"gitlab.com/thorchain/tss/go-tss/conversion"
+	"gitlab.com/thorchain/tss/go-tss/keygen"
 	"gitlab.com/thorchain/tss/go-tss/messages"
 	"gitlab.com/thorchain/tss/go-tss/p2p"
 	"gitlab.com/thorchain/tss/go-tss/storage"
@@ -156,7 +157,7 @@ func getPreparams(c *C) []*btsskeygen.LocalPreParams {
 
 func (s *TssKeygenTestSuite) TestGenerateNewKey(c *C) {
 	sort.Strings(testPubKeys)
-	req := NewRequest(testPubKeys)
+	req := keygen.NewRequest(testPubKeys)
 	messageID, err := common.MsgToHashString([]byte(strings.Join(req.Keys, "")))
 	c.Assert(err, IsNil)
 	conf := common.TssConfig{
@@ -209,7 +210,7 @@ func (s *TssKeygenTestSuite) TestGenerateNewKey(c *C) {
 
 func (s *TssKeygenTestSuite) TestGenerateNewKeyWithStop(c *C) {
 	sort.Strings(testPubKeys)
-	req := NewRequest(testPubKeys)
+	req := keygen.NewRequest(testPubKeys)
 	messageID, err := common.MsgToHashString([]byte(strings.Join(req.Keys, "")))
 	c.Assert(err, IsNil)
 	conf := common.TssConfig{
@@ -266,7 +267,7 @@ func (s *TssKeygenTestSuite) TestGenerateNewKeyWithStop(c *C) {
 }
 
 func (s *TssKeygenTestSuite) TestKeyGenWithError(c *C) {
-	req := Request{
+	req := keygen.Request{
 		Keys: testPubKeys[:],
 	}
 	conf := common.TssConfig{}

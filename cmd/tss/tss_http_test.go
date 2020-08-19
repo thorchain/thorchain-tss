@@ -12,7 +12,7 @@ import (
 	. "gopkg.in/check.v1"
 
 	"gitlab.com/thorchain/tss/go-tss/common"
-	"gitlab.com/thorchain/tss/go-tss/keygen"
+	"gitlab.com/thorchain/tss/go-tss/keygen/ecdsa"
 )
 
 func TestPackage(t *testing.T) { TestingT(t) }
@@ -119,7 +119,7 @@ func (TssHttpServerTestSuite) TestKeygenHandler(c *C) {
 
 			resultChecker: func(c *C, w *httptest.ResponseRecorder) {
 				c.Assert(w.Code, Equals, http.StatusOK)
-				var resp keygen.Response
+				var resp ecdsa.Response
 				c.Assert(json.Unmarshal(w.Body.Bytes(), &resp), IsNil)
 			},
 		},
@@ -196,7 +196,7 @@ func (TssHttpServerTestSuite) TestKeysignHandler(c *C) {
 
 			resultChecker: func(c *C, w *httptest.ResponseRecorder) {
 				c.Assert(w.Code, Equals, http.StatusOK)
-				var resp keygen.Response
+				var resp ecdsa.Response
 				c.Assert(json.Unmarshal(w.Body.Bytes(), &resp), IsNil)
 			},
 		},

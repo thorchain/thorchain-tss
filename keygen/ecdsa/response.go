@@ -1,4 +1,4 @@
-package keygen
+package ecdsa
 
 import (
 	"gitlab.com/thorchain/tss/go-tss/blame"

@@ -7,19 +7,20 @@ import (
 	"gitlab.com/thorchain/tss/go-tss/common"
 	"gitlab.com/thorchain/tss/go-tss/conversion"
 	"gitlab.com/thorchain/tss/go-tss/keygen"
+	"gitlab.com/thorchain/tss/go-tss/keygen/ecdsa"
 	"gitlab.com/thorchain/tss/go-tss/messages"
 )
 
-func (t *TssServer) Keygen(req keygen.Request) (keygen.Response, error) {
+func (t *TssServer) Keygen(req keygen.Request) (ecdsa.Response, error) {
 	t.tssKeyGenLocker.Lock()
 	defer t.tssKeyGenLocker.Unlock()
 	status := common.Success
 	msgID, err := t.requestToMsgId(req)
 	if err != nil {
-		return keygen.Response{}, err
+		return ecdsa.Response{}, err
 	}
 
-	keygenInstance := keygen.NewTssKeyGen(
+	keygenInstance := ecdsa.NewTssKeyGen(
 		t.p2pCommunication.GetLocalPeerID(),
 		t.conf,
 		t.localNodePubKey,
@@ -51,7 +52,7 @@ func (t *TssServer) Keygen(req keygen.Request) (keygen.Response, error) {
 	if err != nil {
 		if onlinePeers == nil {
 			t.logger.Error().Err(err).Msg("error before we start join party")
-			return keygen.Response{
+			return ecdsa.Response{
 				Status: common.Fail,
 				Blame:  blame.NewBlame(blame.InternalError, []blame.Node{}),
 			}, nil
@@ -63,7 +64,7 @@ func (t *TssServer) Keygen(req keygen.Request) (keygen.Response, error) {
 		}
 		// make sure we blame the leader as well
 		t.logger.Error().Err(err).Msgf("fail to form keysign party with online:%v", onlinePeers)
-		return keygen.Response{
+		return ecdsa.Response{
 			Status: common.Fail,
 			Blame:  blameNodes,
 		}, nil
@@ -80,7 +81,7 @@ func (t *TssServer) Keygen(req keygen.Request) (keygen.Response, error) {
 		atomic.AddUint64(&t.Status.FailedKeyGen, 1)
 		t.logger.Error().Err(err).Msg("err in keygen")
 		blameNodes := *blameMgr.GetBlame()
-		return keygen.NewResponse("", "", common.Fail, blameNodes), err
+		return ecdsa.NewResponse("", "", common.Fail, blameNodes), err
 	} else {
 		atomic.AddUint64(&t.Status.SucKeyGen, 1)
 	}
@@ -92,7 +93,7 @@ func (t *TssServer) Keygen(req keygen.Request) (keygen.Response, error) {
 	}
 
 	blameNodes := *blameMgr.GetBlame()
-	return keygen.NewResponse(
+	return ecdsa.NewResponse(
 		newPubKey,
 		addr.String(),
 		status,
