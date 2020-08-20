@@ -3,7 +3,6 @@ package tss
 import (
 	"gitlab.com/thorchain/tss/go-tss/common"
 	"gitlab.com/thorchain/tss/go-tss/keygen"
-	"gitlab.com/thorchain/tss/go-tss/keygen/ecdsa"
 	"gitlab.com/thorchain/tss/go-tss/keysign"
 )
 
@@ -12,7 +11,7 @@ type Server interface {
 	Start() error
 	Stop()
 	GetLocalPeerID() string
-	Keygen(req keygen.Request) (ecdsa.Response, error)
+	Keygen(req keygen.Request) (keygen.Response, error)
 	KeySign(req keysign.Request) (keysign.Response, error)
 	GetStatus() common.TssStatus
 }

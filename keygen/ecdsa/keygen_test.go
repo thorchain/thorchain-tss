@@ -19,7 +19,7 @@ import (
 	tcrypto "github.com/tendermint/tendermint/crypto"
 	"github.com/tendermint/tendermint/crypto/secp256k1"
 
-	btsskeygen "github.com/binance-chain/tss-lib/ecdsa/keygen"
+	ecdsakeygen "github.com/binance-chain/tss-lib/ecdsa/keygen"
 	btss "github.com/binance-chain/tss-lib/tss"
 	maddr "github.com/multiformats/go-multiaddr"
 	. "gopkg.in/check.v1"
@@ -61,18 +61,18 @@ var (
 
 func TestPackage(t *testing.T) { TestingT(t) }
 
-type TssKeygenTestSuite struct {
+type EcdsaKeygenTestSuite struct {
 	comms        []*p2p.Communication
-	preParams    []*btsskeygen.LocalPreParams
+	preParams    []*ecdsakeygen.LocalPreParams
 	partyNum     int
 	stateMgrs    []storage.LocalStateManager
 	nodePrivKeys []tcrypto.PrivKey
 	targePeers   []peer.ID
 }
 
-var _ = Suite(&TssKeygenTestSuite{})
+var _ = Suite(&EcdsaKeygenTestSuite{})
 
-func (s *TssKeygenTestSuite) SetUpSuite(c *C) {
+func (s *EcdsaKeygenTestSuite) SetUpSuite(c *C) {
 	common.InitLog("info", true, "keygen_test")
 	conversion.SetupBech32Prefix()
 	for _, el := range testNodePrivkey {
@@ -94,7 +94,7 @@ func (s *TssKeygenTestSuite) SetUpSuite(c *C) {
 }
 
 // SetUpTest set up environment for test key gen
-func (s *TssKeygenTestSuite) SetUpTest(c *C) {
+func (s *EcdsaKeygenTestSuite) SetUpTest(c *C) {
 	ports := []int{
 		18666, 18667, 18668, 18669,
 	}
@@ -129,24 +129,24 @@ func (s *TssKeygenTestSuite) SetUpTest(c *C) {
 	}
 }
 
-func (s *TssKeygenTestSuite) TearDownTest(c *C) {
+func (s *EcdsaKeygenTestSuite) TearDownTest(c *C) {
 	time.Sleep(time.Second)
 	for _, item := range s.comms {
 		c.Assert(item.Stop(), IsNil)
 	}
 }
 
-func getPreparams(c *C) []*btsskeygen.LocalPreParams {
+func getPreparams(c *C) []*ecdsakeygen.LocalPreParams {
 	const (
 		testFileLocation = "../../test_data"
 		preParamTestFile = "preParam_test.data"
 	)
-	var preParamArray []*btsskeygen.LocalPreParams
+	var preParamArray []*ecdsakeygen.LocalPreParams
 	buf, err := ioutil.ReadFile(path.Join(testFileLocation, preParamTestFile))
 	c.Assert(err, IsNil)
 	preParamsStr := strings.Split(string(buf), "\n")
 	for _, item := range preParamsStr {
-		var preParam btsskeygen.LocalPreParams
+		var preParam ecdsakeygen.LocalPreParams
 		val, err := hex.DecodeString(item)
 		c.Assert(err, IsNil)
 		c.Assert(json.Unmarshal(val, &preParam), IsNil)
@@ -155,7 +155,7 @@ func getPreparams(c *C) []*btsskeygen.LocalPreParams {
 	return preParamArray
 }
 
-func (s *TssKeygenTestSuite) TestGenerateNewKey(c *C) {
+func (s *EcdsaKeygenTestSuite) TestGenerateNewKey(c *C) {
 	sort.Strings(testPubKeys)
 	req := keygen.NewRequest(testPubKeys)
 	messageID, err := common.MsgToHashString([]byte(strings.Join(req.Keys, "")))
@@ -208,7 +208,7 @@ func (s *TssKeygenTestSuite) TestGenerateNewKey(c *C) {
 	}
 }
 
-func (s *TssKeygenTestSuite) TestGenerateNewKeyWithStop(c *C) {
+func (s *EcdsaKeygenTestSuite) TestGenerateNewKeyWithStop(c *C) {
 	sort.Strings(testPubKeys)
 	req := keygen.NewRequest(testPubKeys)
 	messageID, err := common.MsgToHashString([]byte(strings.Join(req.Keys, "")))
@@ -266,7 +266,7 @@ func (s *TssKeygenTestSuite) TestGenerateNewKeyWithStop(c *C) {
 	wg.Wait()
 }
 
-func (s *TssKeygenTestSuite) TestKeyGenWithError(c *C) {
+func (s *EcdsaKeygenTestSuite) TestKeyGenWithError(c *C) {
 	req := keygen.Request{
 		Keys: testPubKeys[:],
 	}
@@ -278,7 +278,7 @@ func (s *TssKeygenTestSuite) TestKeyGenWithError(c *C) {
 	c.Assert(generatedKey, IsNil)
 }
 
-func (s *TssKeygenTestSuite) TestCloseKeyGennotifyChannel(c *C) {
+func (s *EcdsaKeygenTestSuite) TestCloseKeyGennotifyChannel(c *C) {
 	conf := common.TssConfig{}
 	stateManager := &storage.MockLocalStateManager{}
 	keyGenInstance := NewTssKeyGen("", conf, "", nil, nil, nil, "test", stateManager, s.nodePrivKeys[0], s.comms[0])

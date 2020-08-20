@@ -11,13 +11,13 @@ import (
 	"gitlab.com/thorchain/tss/go-tss/messages"
 )
 
-func (t *TssServer) Keygen(req keygen.Request) (ecdsa.Response, error) {
+func (t *TssServer) Keygen(req keygen.Request) (keygen.Response, error) {
 	t.tssKeyGenLocker.Lock()
 	defer t.tssKeyGenLocker.Unlock()
 	status := common.Success
 	msgID, err := t.requestToMsgId(req)
 	if err != nil {
-		return ecdsa.Response{}, err
+		return keygen.Response{}, err
 	}
 
 	var keygenInstance keygen.TssKeyGen
@@ -54,7 +54,7 @@ func (t *TssServer) Keygen(req keygen.Request) (ecdsa.Response, error) {
 	if err != nil {
 		if onlinePeers == nil {
 			t.logger.Error().Err(err).Msg("error before we start join party")
-			return ecdsa.Response{
+			return keygen.Response{
 				Status: common.Fail,
 				Blame:  blame.NewBlame(blame.InternalError, []blame.Node{}),
 			}, nil
@@ -66,7 +66,7 @@ func (t *TssServer) Keygen(req keygen.Request) (ecdsa.Response, error) {
 		}
 		// make sure we blame the leader as well
 		t.logger.Error().Err(err).Msgf("fail to form keysign party with online:%v", onlinePeers)
-		return ecdsa.Response{
+		return keygen.Response{
 			Status: common.Fail,
 			Blame:  blameNodes,
 		}, nil
@@ -83,7 +83,7 @@ func (t *TssServer) Keygen(req keygen.Request) (ecdsa.Response, error) {
 		atomic.AddUint64(&t.Status.FailedKeyGen, 1)
 		t.logger.Error().Err(err).Msg("err in keygen")
 		blameNodes := *blameMgr.GetBlame()
-		return ecdsa.NewResponse("", "", common.Fail, blameNodes), err
+		return keygen.NewResponse("", "", common.Fail, blameNodes), err
 	} else {
 		atomic.AddUint64(&t.Status.SucKeyGen, 1)
 	}
@@ -95,7 +95,7 @@ func (t *TssServer) Keygen(req keygen.Request) (ecdsa.Response, error) {
 	}
 
 	blameNodes := *blameMgr.GetBlame()
-	return ecdsa.NewResponse(
+	return keygen.NewResponse(
 		newPubKey,
 		addr.String(),
 		status,

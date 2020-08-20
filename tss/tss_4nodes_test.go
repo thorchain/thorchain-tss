@@ -21,7 +21,6 @@ import (
 	"gitlab.com/thorchain/tss/go-tss/common"
 	"gitlab.com/thorchain/tss/go-tss/conversion"
 	"gitlab.com/thorchain/tss/go-tss/keygen"
-	"gitlab.com/thorchain/tss/go-tss/keygen/ecdsa"
 	"gitlab.com/thorchain/tss/go-tss/keysign"
 )
 
@@ -108,7 +107,7 @@ func (s *FourNodeTestSuite) TestKeygenAndKeySign(c *C) {
 	req := keygen.NewRequest(testPubKeys)
 	wg := sync.WaitGroup{}
 	lock := &sync.Mutex{}
-	keygenResult := make(map[int]ecdsa.Response)
+	keygenResult := make(map[int]keygen.Response)
 	for i := 0; i < partyNum; i++ {
 		wg.Add(1)
 		go func(idx int) {
@@ -194,7 +193,7 @@ func (s *FourNodeTestSuite) TestFailJoinParty(c *C) {
 	req := keygen.NewRequest(testPubKeys)
 	wg := sync.WaitGroup{}
 	lock := &sync.Mutex{}
-	keygenResult := make(map[int]ecdsa.Response)
+	keygenResult := make(map[int]keygen.Response)
 	// here we skip the first node
 	for i := 1; i < partyNum; i++ {
 		wg.Add(1)
@@ -228,7 +227,7 @@ func (s *FourNodeTestSuite) TestBlame(c *C) {
 	req := keygen.NewRequest(testPubKeys)
 	wg := sync.WaitGroup{}
 	lock := &sync.Mutex{}
-	keygenResult := make(map[int]ecdsa.Response)
+	keygenResult := make(map[int]keygen.Response)
 	for i := 0; i < partyNum; i++ {
 		wg.Add(1)
 		go func(idx int) {

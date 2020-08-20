@@ -7,7 +7,7 @@ import (
 	"time"
 
 	bcrypto "github.com/binance-chain/tss-lib/crypto"
-	bkg "github.com/binance-chain/tss-lib/ecdsa/keygen"
+	ecdsakg "github.com/binance-chain/tss-lib/ecdsa/keygen"
 	btss "github.com/binance-chain/tss-lib/tss"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -25,7 +25,7 @@ import (
 type ECDSAKeyGen struct {
 	logger          zerolog.Logger
 	localNodePubKey string
-	preParams       *bkg.LocalPreParams
+	preParams       *ecdsakg.LocalPreParams
 	tssCommonStruct *common.TssCommon
 	stopChan        chan struct{} // channel to indicate whether we should stop
 	localParty      *btss.PartyID
@@ -39,7 +39,7 @@ func NewTssKeyGen(localP2PID string,
 	localNodePubKey string,
 	broadcastChan chan *messages.BroadcastMsgChan,
 	stopChan chan struct{},
-	preParam *bkg.LocalPreParams,
+	preParam *ecdsakg.LocalPreParams,
 	msgID string,
 	stateManager storage.LocalStateManager,
 	privateKey tcrypto.PrivKey,
@@ -85,14 +85,14 @@ func (tKeyGen *ECDSAKeyGen) GenerateNewKey(keygenReq keygen.Request) (*bcrypto.E
 	ctx := btss.NewPeerContext(partiesID)
 	params := btss.NewParameters(ctx, localPartyID, len(partiesID), threshold)
 	outCh := make(chan btss.Message, len(partiesID))
-	endCh := make(chan bkg.LocalPartySaveData, len(partiesID))
+	endCh := make(chan ecdsakg.LocalPartySaveData, len(partiesID))
 	errChan := make(chan struct{})
 	if tKeyGen.preParams == nil {
 		tKeyGen.logger.Error().Err(err).Msg("error, empty pre-parameters")
 		return nil, errors.New("error, empty pre-parameters")
 	}
 	blameMgr := tKeyGen.tssCommonStruct.GetBlameMgr()
-	keyGenParty := bkg.NewLocalParty(params, outCh, endCh, *tKeyGen.preParams)
+	keyGenParty := ecdsakg.NewLocalParty(params, outCh, endCh, *tKeyGen.preParams)
 	partyIDMap := conversion.SetupPartyIDMap(partiesID)
 	err1 := conversion.SetupIDMaps(partyIDMap, tKeyGen.tssCommonStruct.PartyIDtoP2PID)
 	err2 := conversion.SetupIDMaps(partyIDMap, blameMgr.PartyIDtoP2PID)
@@ -141,7 +141,7 @@ func (tKeyGen *ECDSAKeyGen) GenerateNewKey(keygenReq keygen.Request) (*bcrypto.E
 
 func (tKeyGen *ECDSAKeyGen) processKeyGen(errChan chan struct{},
 	outCh <-chan btss.Message,
-	endCh <-chan bkg.LocalPartySaveData,
+	endCh <-chan ecdsakg.LocalPartySaveData,
 	keyGenLocalStateItem storage.KeygenLocalState) (*bcrypto.ECPoint, error) {
 	defer tKeyGen.logger.Debug().Msg("finished keygen process")
 	tKeyGen.logger.Debug().Msg("start to read messages from local party")

@@ -8,7 +8,6 @@ import (
 	"gitlab.com/thorchain/tss/go-tss/common"
 	"gitlab.com/thorchain/tss/go-tss/conversion"
 	"gitlab.com/thorchain/tss/go-tss/keygen"
-	"gitlab.com/thorchain/tss/go-tss/keygen/ecdsa"
 	"gitlab.com/thorchain/tss/go-tss/keysign"
 )
 
@@ -32,11 +31,11 @@ func (mts *MockTssServer) GetLocalPeerID() string {
 	return conversion.GetRandomPeerID().String()
 }
 
-func (mts *MockTssServer) Keygen(req keygen.Request) (ecdsa.Response, error) {
+func (mts *MockTssServer) Keygen(req keygen.Request) (keygen.Response, error) {
 	if mts.failToKeyGen {
-		return ecdsa.Response{}, errors.New("you ask for it")
+		return keygen.Response{}, errors.New("you ask for it")
 	}
-	return ecdsa.NewResponse(conversion.GetRandomPubKey(), "whatever", common.Success, blame.Blame{}), nil
+	return keygen.NewResponse(conversion.GetRandomPubKey(), "whatever", common.Success, blame.Blame{}), nil
 }
 
 func (mts *MockTssServer) KeySign(req keysign.Request) (keysign.Response, error) {
