@@ -4,7 +4,6 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
-	"io/ioutil"
 	"os"
 	"path"
 	"sort"
@@ -19,7 +18,6 @@ import (
 	tcrypto "github.com/tendermint/tendermint/crypto"
 	"github.com/tendermint/tendermint/crypto/secp256k1"
 
-	ecdsakeygen "github.com/binance-chain/tss-lib/ecdsa/keygen"
 	btss "github.com/binance-chain/tss-lib/tss"
 	maddr "github.com/multiformats/go-multiaddr"
 	. "gopkg.in/check.v1"
@@ -63,7 +61,6 @@ func TestPackage(t *testing.T) { TestingT(t) }
 
 type EddsaKeygenTestSuite struct {
 	comms        []*p2p.Communication
-	preParams    []*ecdsakeygen.LocalPreParams
 	partyNum     int
 	stateMgrs    []storage.LocalStateManager
 	nodePrivKeys []tcrypto.PrivKey
@@ -104,7 +101,6 @@ func (s *EddsaKeygenTestSuite) SetUpTest(c *C) {
 	bootstrapPeer := "/ip4/127.0.0.1/tcp/18666/p2p/16Uiu2HAm4TmEzUqy3q3Dv7HvdoSboHk5sFj2FH3npiN5vDbJC6gh"
 	multiAddr, err := maddr.NewMultiaddr(bootstrapPeer)
 	c.Assert(err, IsNil)
-	s.preParams = getPreparams(c)
 	for i := 0; i < s.partyNum; i++ {
 		buf, err := base64.StdEncoding.DecodeString(testPriKeyArr[i])
 		c.Assert(err, IsNil)
@@ -136,25 +132,6 @@ func (s *EddsaKeygenTestSuite) TearDownTest(c *C) {
 	}
 }
 
-func getPreparams(c *C) []*ecdsakeygen.LocalPreParams {
-	const (
-		testFileLocation = "../../test_data"
-		preParamTestFile = "preParam_test.data"
-	)
-	var preParamArray []*ecdsakeygen.LocalPreParams
-	buf, err := ioutil.ReadFile(path.Join(testFileLocation, preParamTestFile))
-	c.Assert(err, IsNil)
-	preParamsStr := strings.Split(string(buf), "\n")
-	for _, item := range preParamsStr {
-		var preParam ecdsakeygen.LocalPreParams
-		val, err := hex.DecodeString(item)
-		c.Assert(err, IsNil)
-		c.Assert(json.Unmarshal(val, &preParam), IsNil)
-		preParamArray = append(preParamArray, &preParam)
-	}
-	return preParamArray
-}
-
 func (s *EddsaKeygenTestSuite) TestGenerateNewKey(c *C) {
 	sort.Strings(testPubKeys)
 	req := keygen.NewRequest(testPubKeys)
@@ -181,7 +158,6 @@ func (s *EddsaKeygenTestSuite) TestGenerateNewKey(c *C) {
 				localPubKey,
 				comm.BroadcastMsgChan,
 				stopChan,
-				s.preParams[idx],
 				messageID,
 				s.stateMgrs[idx], s.nodePrivKeys[idx], s.comms[idx])
 			c.Assert(keygenInstance, NotNil)
@@ -233,7 +209,6 @@ func (s *EddsaKeygenTestSuite) TestGenerateNewKeyWithStop(c *C) {
 				localPubKey,
 				comm.BroadcastMsgChan,
 				stopChan,
-				s.preParams[idx],
 				messageID,
 				s.stateMgrs[idx],
 				s.nodePrivKeys[idx], s.comms[idx])
@@ -249,7 +224,8 @@ func (s *EddsaKeygenTestSuite) TestGenerateNewKeyWithStop(c *C) {
 			defer comm.CancelSubscribe(messages.TSSTaskDone, messageID)
 			if idx == 1 {
 				go func() {
-					time.Sleep(time.Millisecond * 200)
+					// eddsa is much faster than ecdsa, so we need to set the delay much shorter
+					time.Sleep(time.Millisecond * 2)
 					close(keygenInstance.stopChan)
 				}()
 			}
@@ -272,7 +248,7 @@ func (s *EddsaKeygenTestSuite) TestKeyGenWithError(c *C) {
 	}
 	conf := common.TssConfig{}
 	stateManager := &storage.MockLocalStateManager{}
-	keyGenInstance := NewTssKeyGen("", conf, "", nil, nil, nil, "test", stateManager, s.nodePrivKeys[0], nil)
+	keyGenInstance := NewTssKeyGen("", conf, "", nil, nil, "test", stateManager, s.nodePrivKeys[0], nil)
 	generatedKey, err := keyGenInstance.GenerateNewKey(req)
 	c.Assert(err, NotNil)
 	c.Assert(generatedKey, IsNil)
@@ -281,7 +257,7 @@ func (s *EddsaKeygenTestSuite) TestKeyGenWithError(c *C) {
 func (s *EddsaKeygenTestSuite) TestCloseKeyGennotifyChannel(c *C) {
 	conf := common.TssConfig{}
 	stateManager := &storage.MockLocalStateManager{}
-	keyGenInstance := NewTssKeyGen("", conf, "", nil, nil, nil, "test", stateManager, s.nodePrivKeys[0], s.comms[0])
+	keyGenInstance := NewTssKeyGen("", conf, "", nil, nil, "test", stateManager, s.nodePrivKeys[0], s.comms[0])
 
 	taskDone := messages.TssTaskNotifier{TaskDone: true}
 	taskDoneBytes, err := json.Marshal(taskDone)

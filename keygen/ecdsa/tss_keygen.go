@@ -1,6 +1,7 @@
 package ecdsa
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"sync"
@@ -207,7 +208,12 @@ func (tKeyGen *ECDSAKeyGen) processKeyGen(errChan chan struct{},
 			if err != nil {
 				return nil, fmt.Errorf("fail to get thorchain pubkey: %w", err)
 			}
-			keyGenLocalStateItem.LocalData = msg
+			marshaledMsg, err := json.Marshal(msg)
+			if err != nil {
+				tKeyGen.logger.Error().Err(err).Msg("fail to marshal the result")
+				return nil, errors.New("fail to marshal the result")
+			}
+			keyGenLocalStateItem.LocalData = marshaledMsg
 			keyGenLocalStateItem.PubKey = pubKey
 			if err := tKeyGen.stateManager.SaveLocalState(keyGenLocalStateItem); err != nil {
 				return nil, fmt.Errorf("fail to save keygen result to storage: %w", err)

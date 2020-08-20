@@ -9,6 +9,7 @@ import (
 	"time"
 
 	bc "github.com/binance-chain/tss-lib/common"
+	ecdsakeygen "github.com/binance-chain/tss-lib/ecdsa/keygen"
 	"github.com/binance-chain/tss-lib/ecdsa/signing"
 	btss "github.com/binance-chain/tss-lib/tss"
 	"github.com/rs/zerolog"
@@ -85,7 +86,12 @@ func (tKeySign *ECDSAKeySign) SignMessage(msgToSign []byte, localStateItem stora
 		return nil, fmt.Errorf("fail to convert msg to hash int: %w", err)
 	}
 	blameMgr := tKeySign.tssCommonStruct.GetBlameMgr()
-	keySignParty := signing.NewLocalParty(m, params, localStateItem.LocalData, outCh, endCh)
+	var localData ecdsakeygen.LocalPartySaveData
+	err = json.Unmarshal(localStateItem.LocalData, &localData)
+	if err != nil {
+		return nil, errors.New("fail to load the saved keygen data")
+	}
+	keySignParty := signing.NewLocalParty(m, params, localData, outCh, endCh)
 	partyIDMap := conversion.SetupPartyIDMap(partiesID)
 	err1 := conversion.SetupIDMaps(partyIDMap, tKeySign.tssCommonStruct.PartyIDtoP2PID)
 	err2 := conversion.SetupIDMaps(partyIDMap, blameMgr.PartyIDtoP2PID)
