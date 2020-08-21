@@ -208,22 +208,22 @@ func (p *ConversionTestSuite) TestTssPubKey(c *C) {
 	c.Assert(err, IsNil)
 	point, err := crypto.NewECPoint(btcec.S256(), sk.X, sk.Y)
 	c.Assert(err, IsNil)
-	_, _, err = GetTssPubKey(point)
+	_, _, err = GetTssPubKeyECDSA(point)
 	c.Assert(err, IsNil)
 
 	// create an invalid point
 	invalidPoint := crypto.NewECPointNoCurveCheck(btcec.S256(), sk.X, new(big.Int).Add(sk.Y, big.NewInt(1)))
-	_, _, err = GetTssPubKey(invalidPoint)
+	_, _, err = GetTssPubKeyECDSA(invalidPoint)
 	c.Assert(err, NotNil)
 
-	pk, addr, err := GetTssPubKey(nil)
+	pk, addr, err := GetTssPubKeyECDSA(nil)
 	c.Assert(err, NotNil)
 	c.Assert(pk, Equals, "")
 	c.Assert(addr.Bytes(), HasLen, 0)
 	SetupBech32Prefix()
 	// var point crypto.ECPoint
 	c.Assert(json.Unmarshal([]byte(`{"Coords":[70074650318631491136896111706876206496089700125696166275258483716815143842813,72125378038650252881868972131323661098816214918201601489154946637636730727892]}`), &point), IsNil)
-	pk, addr, err = GetTssPubKey(point)
+	pk, addr, err = GetTssPubKeyECDSA(point)
 	c.Assert(err, IsNil)
 	c.Assert(pk, Equals, "thorpub1addwnpepq2dwek9hkrlxjxadrlmy9fr42gqyq6029q0hked46l3u6a9fxqel6tma5eu")
 	c.Assert(addr.String(), Equals, "bnb17l7cyxqzg4xymnl0alrhqwja276s3rns4256c2")

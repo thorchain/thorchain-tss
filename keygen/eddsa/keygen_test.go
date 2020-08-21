@@ -184,64 +184,6 @@ func (s *EddsaKeygenTestSuite) TestGenerateNewKey(c *C) {
 	}
 }
 
-func (s *EddsaKeygenTestSuite) TestGenerateNewKeyWithStop(c *C) {
-	sort.Strings(testPubKeys)
-	req := keygen.NewRequest(testPubKeys)
-	messageID, err := common.MsgToHashString([]byte(strings.Join(req.Keys, "")))
-	c.Assert(err, IsNil)
-	conf := common.TssConfig{
-		KeyGenTimeout:   10 * time.Second,
-		KeySignTimeout:  10 * time.Second,
-		PreParamTimeout: 5 * time.Second,
-	}
-	wg := sync.WaitGroup{}
-
-	for i := 0; i < s.partyNum; i++ {
-		wg.Add(1)
-		go func(idx int) {
-			defer wg.Done()
-			comm := s.comms[idx]
-			stopChan := make(chan struct{})
-			localPubKey := testPubKeys[idx]
-			keygenInstance := NewTssKeyGen(
-				comm.GetLocalPeerID(),
-				conf,
-				localPubKey,
-				comm.BroadcastMsgChan,
-				stopChan,
-				messageID,
-				s.stateMgrs[idx],
-				s.nodePrivKeys[idx], s.comms[idx])
-			c.Assert(keygenInstance, NotNil)
-			keygenMsgChannel := keygenInstance.GetTssKeyGenChannels()
-			comm.SetSubscribe(messages.TSSKeyGenMsg, messageID, keygenMsgChannel)
-			comm.SetSubscribe(messages.TSSKeyGenVerMsg, messageID, keygenMsgChannel)
-			comm.SetSubscribe(messages.TSSControlMsg, messageID, keygenMsgChannel)
-			comm.SetSubscribe(messages.TSSTaskDone, messageID, keygenMsgChannel)
-			defer comm.CancelSubscribe(messages.TSSKeyGenMsg, messageID)
-			defer comm.CancelSubscribe(messages.TSSKeyGenVerMsg, messageID)
-			defer comm.CancelSubscribe(messages.TSSControlMsg, messageID)
-			defer comm.CancelSubscribe(messages.TSSTaskDone, messageID)
-			if idx == 1 {
-				go func() {
-					// eddsa is much faster than ecdsa, so we need to set the delay much shorter
-					time.Sleep(time.Millisecond * 2)
-					close(keygenInstance.stopChan)
-				}()
-			}
-			_, err := keygenInstance.GenerateNewKey(req)
-			c.Assert(err, NotNil)
-			// we skip the node 1 as we force it to stop
-			if idx != 1 {
-				blames := keygenInstance.GetTssCommonStruct().GetBlameMgr().GetBlame().BlameNodes
-				c.Assert(blames, HasLen, 1)
-				c.Assert(blames[0].Pubkey, Equals, testPubKeys[1])
-			}
-		}(i)
-	}
-	wg.Wait()
-}
-
 func (s *EddsaKeygenTestSuite) TestKeyGenWithError(c *C) {
 	req := keygen.Request{
 		Keys: testPubKeys[:],

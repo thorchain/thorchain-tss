@@ -14,6 +14,7 @@ import (
 	btss "github.com/binance-chain/tss-lib/tss"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
+	"github.com/tendermint/btcd/btcec"
 	tcrypto "github.com/tendermint/tendermint/crypto"
 
 	"gitlab.com/thorchain/tss/go-tss/blame"
@@ -61,6 +62,7 @@ func (tKeySign *ECDSAKeySign) GetTssCommonStruct() *common.TssCommon {
 
 // signMessage
 func (tKeySign *ECDSAKeySign) SignMessage(msgToSign []byte, localStateItem storage.KeygenLocalState, parties []string) (*bc.SignatureData, error) {
+	btss.SetCurve(btcec.S256())
 	partiesID, localPartyID, err := conversion.GetParties(parties, localStateItem.LocalPartyKey)
 	tKeySign.localParty = localPartyID
 	if err != nil {

@@ -9,9 +9,10 @@ import (
 	"time"
 
 	bc "github.com/binance-chain/tss-lib/common"
-	ecdsakeygen "github.com/binance-chain/tss-lib/eddsa/keygen"
+	eddsakeygen "github.com/binance-chain/tss-lib/eddsa/keygen"
 	"github.com/binance-chain/tss-lib/eddsa/signing"
 	btss "github.com/binance-chain/tss-lib/tss"
+	"github.com/decred/dcrd/dcrec/edwards/v2"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	tcrypto "github.com/tendermint/tendermint/crypto"
@@ -61,6 +62,7 @@ func (tKeySign *EDDSAKeySign) GetTssCommonStruct() *common.TssCommon {
 
 // signMessage
 func (tKeySign *EDDSAKeySign) SignMessage(msgToSign []byte, localStateItem storage.KeygenLocalState, parties []string) (*bc.SignatureData, error) {
+	btss.SetCurve(edwards.Edwards())
 	partiesID, localPartyID, err := conversion.GetParties(parties, localStateItem.LocalPartyKey)
 	tKeySign.localParty = localPartyID
 	if err != nil {
@@ -86,7 +88,7 @@ func (tKeySign *EDDSAKeySign) SignMessage(msgToSign []byte, localStateItem stora
 		return nil, fmt.Errorf("fail to convert msg to hash int: %w", err)
 	}
 	blameMgr := tKeySign.tssCommonStruct.GetBlameMgr()
-	var localData ecdsakeygen.LocalPartySaveData
+	var localData eddsakeygen.LocalPartySaveData
 	err = json.Unmarshal(localStateItem.LocalData, &localData)
 	if err != nil {
 		return nil, errors.New("fail to load the saved keygen data")

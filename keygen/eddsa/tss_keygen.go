@@ -10,6 +10,7 @@ import (
 	bcrypto "github.com/binance-chain/tss-lib/crypto"
 	eddsakg "github.com/binance-chain/tss-lib/eddsa/keygen"
 	btss "github.com/binance-chain/tss-lib/tss"
+	"github.com/decred/dcrd/dcrec/edwards/v2"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	tcrypto "github.com/tendermint/tendermint/crypto"
@@ -66,6 +67,7 @@ func (tKeyGen *EDDSAKeyGen) GetTssCommonStruct() *common.TssCommon {
 }
 
 func (tKeyGen *EDDSAKeyGen) GenerateNewKey(keygenReq keygen.Request) (*bcrypto.ECPoint, error) {
+	btss.SetCurve(edwards.Edwards())
 	partiesID, localPartyID, err := conversion.GetParties(keygenReq.Keys, tKeyGen.localNodePubKey)
 	if err != nil {
 		return nil, fmt.Errorf("fail to get keygen parties: %w", err)
@@ -120,7 +122,7 @@ func (tKeyGen *EDDSAKeyGen) GenerateNewKey(keygenReq keygen.Request) (*bcrypto.E
 	r, err := tKeyGen.processKeyGen(errChan, outCh, endCh, keyGenLocalStateItem)
 	if err != nil {
 		close(tKeyGen.commStopChan)
-		return nil, fmt.Errorf("fail to process key sign: %w", err)
+		return nil, fmt.Errorf("fail to process key gen: %w", err)
 	}
 	select {
 	case <-time.After(time.Second * 5):
@@ -198,7 +200,7 @@ func (tKeyGen *EDDSAKeyGen) processKeyGen(errChan chan struct{},
 			if err != nil {
 				tKeyGen.logger.Error().Err(err).Msg("fail to broadcast the keysign done")
 			}
-			pubKey, _, err := conversion.GetTssPubKey(msg.EDDSAPub)
+			pubKey, _, err := conversion.GetTssPubKeyEDDSA(msg.EDDSAPub)
 			if err != nil {
 				return nil, fmt.Errorf("fail to get thorchain pubkey: %w", err)
 			}

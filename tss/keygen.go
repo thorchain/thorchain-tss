@@ -88,7 +88,7 @@ func (t *TssServer) Keygen(req keygen.Request) (keygen.Response, error) {
 		atomic.AddUint64(&t.Status.SucKeyGen, 1)
 	}
 
-	newPubKey, addr, err := conversion.GetTssPubKey(k)
+	newPubKey, addr, err := conversion.GetTssPubKeyECDSA(k)
 	if err != nil {
 		t.logger.Error().Err(err).Msg("fail to generate the new Tss key")
 		status = common.Fail
