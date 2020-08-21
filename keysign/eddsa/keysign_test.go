@@ -1,4 +1,4 @@
-package ecdsa
+package eddsa
 
 import (
 	"encoding/base64"
@@ -15,6 +15,7 @@ import (
 	"time"
 
 	btss "github.com/binance-chain/tss-lib/tss"
+	golog "github.com/ipfs/go-log"
 	"github.com/libp2p/go-libp2p-peerstore/addr"
 
 	"github.com/rs/zerolog/log"
@@ -105,6 +106,7 @@ var _ = Suite(&TssKeysignTestSuite{})
 
 func (s *TssKeysignTestSuite) SetUpSuite(c *C) {
 	conversion.SetupBech32Prefix()
+	_ = golog.SetLogLevel("tss-lib", "INFO")
 	common.InitLog("info", true, "keysign_test")
 
 	for _, el := range testNodePrivkey {
@@ -157,7 +159,7 @@ func (s *TssKeysignTestSuite) SetUpTest(c *C) {
 
 	for i := 0; i < s.partyNum; i++ {
 		f := &MockLocalStateManager{
-			file: fmt.Sprintf("../../test_data/keysign_data/ecdsa/%d.json", i),
+			file: fmt.Sprintf("../../test_data/keysign_data/eddsa/%d.json", i),
 		}
 		s.stateMgrs[i] = f
 	}
@@ -169,7 +171,7 @@ func (s *TssKeysignTestSuite) TestSignMessage(c *C) {
 		return
 	}
 	sort.Strings(testPubKeys)
-	req := keysign.NewRequest("thorpub1addwnpepq063k92ed3sc37ajnr3mqzjjhx5cqean4auzexz3cvunpmyq0arm69kraf2", "helloworld-test111", testPubKeys)
+	req := keysign.NewRequest("thorpub1addwnpepqwu2jajdcsnrdm2zvggkkn55yd0r2n82vukdkngmselfwe76nququnvqknf", "helloworld-test111", testPubKeys)
 	messageID, err := common.MsgToHashString([]byte(req.Message))
 	c.Assert(err, IsNil)
 	wg := sync.WaitGroup{}
@@ -223,7 +225,7 @@ func (s *TssKeysignTestSuite) TestSignMessage(c *C) {
 	}
 }
 
-func observeAndStop(c *C, tssKeySign *ECDSAKeySign, stopChan chan struct{}) {
+func observeAndStop(c *C, tssKeySign *EDDSAKeySign, stopChan chan struct{}) {
 	for {
 		select {
 		case <-stopChan:
@@ -253,7 +255,7 @@ func (s *TssKeysignTestSuite) TestSignMessageWithStop(c *C) {
 		return
 	}
 	sort.Strings(testPubKeys)
-	req := keysign.NewRequest("thorpub1addwnpepq063k92ed3sc37ajnr3mqzjjhx5cqean4auzexz3cvunpmyq0arm69kraf2", "helloworld-test111", testPubKeys)
+	req := keysign.NewRequest("thorpub1addwnpepqwu2jajdcsnrdm2zvggkkn55yd0r2n82vukdkngmselfwe76nququnvqknf", "helloworld-test111", testPubKeys)
 	messageID, err := common.MsgToHashString([]byte(req.Message))
 	c.Assert(err, IsNil)
 	wg := sync.WaitGroup{}
@@ -303,7 +305,7 @@ func (s *TssKeysignTestSuite) TestSignMessageWithStop(c *C) {
 	wg.Wait()
 }
 
-func rejectSendToOnePeer(c *C, tssKeySign *ECDSAKeySign, stopChan chan struct{}, targetPeers []peer.ID) {
+func rejectSendToOnePeer(c *C, tssKeySign *EDDSAKeySign, stopChan chan struct{}, targetPeers []peer.ID) {
 	for {
 		select {
 		case <-stopChan:
@@ -336,7 +338,7 @@ func (s *TssKeysignTestSuite) TestSignMessageRejectOnePeer(c *C) {
 		return
 	}
 	sort.Strings(testPubKeys)
-	req := keysign.NewRequest("thorpub1addwnpepq063k92ed3sc37ajnr3mqzjjhx5cqean4auzexz3cvunpmyq0arm69kraf2", "helloworld-test111", testPubKeys)
+	req := keysign.NewRequest("thorpub1addwnpepqwu2jajdcsnrdm2zvggkkn55yd0r2n82vukdkngmselfwe76nququnvqknf", "helloworld-test111", testPubKeys)
 	messageID, err := common.MsgToHashString([]byte(req.Message))
 	c.Assert(err, IsNil)
 	wg := sync.WaitGroup{}
