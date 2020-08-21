@@ -1,6 +1,7 @@
 package tss
 
 import (
+	"errors"
 	"sync/atomic"
 
 	"gitlab.com/thorchain/tss/go-tss/blame"
@@ -8,10 +9,13 @@ import (
 	"gitlab.com/thorchain/tss/go-tss/conversion"
 	"gitlab.com/thorchain/tss/go-tss/keygen"
 	"gitlab.com/thorchain/tss/go-tss/keygen/ecdsa"
+	"gitlab.com/thorchain/tss/go-tss/keygen/eddsa"
+
+	//"gitlab.com/thorchain/tss/go-tss/keygen/eddsa"
 	"gitlab.com/thorchain/tss/go-tss/messages"
 )
 
-func (t *TssServer) Keygen(req keygen.Request) (keygen.Response, error) {
+func (t *TssServer) Keygen(req keygen.Request, algo string) (keygen.Response, error) {
 	t.tssKeyGenLocker.Lock()
 	defer t.tssKeyGenLocker.Unlock()
 	status := common.Success
@@ -21,19 +25,34 @@ func (t *TssServer) Keygen(req keygen.Request) (keygen.Response, error) {
 	}
 
 	var keygenInstance keygen.TssKeyGen
-	ecdsaKeygen := ecdsa.NewTssKeyGen(
-		t.p2pCommunication.GetLocalPeerID(),
-		t.conf,
-		t.localNodePubKey,
-		t.p2pCommunication.BroadcastMsgChan,
-		t.stopChan,
-		t.preParams,
-		msgID,
-		t.stateManager,
-		t.privateKey,
-		t.p2pCommunication)
+	switch algo {
+	case "ecdsa":
+		keygenInstance = ecdsa.NewTssKeyGen(
+			t.p2pCommunication.GetLocalPeerID(),
+			t.conf,
+			t.localNodePubKey,
+			t.p2pCommunication.BroadcastMsgChan,
+			t.stopChan,
+			t.preParams,
+			msgID,
+			t.stateManager,
+			t.privateKey,
+			t.p2pCommunication)
+	case "eddsa":
+		keygenInstance = eddsa.NewTssKeyGen(
+			t.p2pCommunication.GetLocalPeerID(),
+			t.conf,
+			t.localNodePubKey,
+			t.p2pCommunication.BroadcastMsgChan,
+			t.stopChan,
+			msgID,
+			t.stateManager,
+			t.privateKey,
+			t.p2pCommunication)
+	default:
+		return keygen.Response{}, errors.New("invalid keygen algo")
+	}
 
-	keygenInstance = ecdsaKeygen
 	keygenMsgChannel := keygenInstance.GetTssKeyGenChannels()
 	t.p2pCommunication.SetSubscribe(messages.TSSKeyGenMsg, msgID, keygenMsgChannel)
 	t.p2pCommunication.SetSubscribe(messages.TSSKeyGenVerMsg, msgID, keygenMsgChannel)

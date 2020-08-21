@@ -112,7 +112,7 @@ func (s *FourNodeTestSuite) TestKeygenAndKeySign(c *C) {
 		wg.Add(1)
 		go func(idx int) {
 			defer wg.Done()
-			res, err := s.servers[idx].Keygen(req)
+			res, err := s.servers[idx].Keygen(req, "ecdsa")
 			c.Assert(err, IsNil)
 			lock.Lock()
 			defer lock.Unlock()
@@ -129,15 +129,15 @@ func (s *FourNodeTestSuite) TestKeygenAndKeySign(c *C) {
 		}
 	}
 	keysignReqWithErr := keysign.NewRequest(poolPubKey, "helloworld", testPubKeys)
-	resp, err := s.servers[0].KeySign(keysignReqWithErr)
+	resp, err := s.servers[0].KeySign(keysignReqWithErr, "ecdsa")
 	c.Assert(err, NotNil)
 	c.Assert(resp.S, Equals, "")
 	keysignReqWithErr1 := keysign.NewRequest(poolPubKey, base64.StdEncoding.EncodeToString(hash([]byte("helloworld"))), testPubKeys[:1])
-	resp, err = s.servers[0].KeySign(keysignReqWithErr1)
+	resp, err = s.servers[0].KeySign(keysignReqWithErr1, "ecdsa")
 	c.Assert(err, NotNil)
 	c.Assert(resp.S, Equals, "")
 	keysignReqWithErr2 := keysign.NewRequest(poolPubKey, base64.StdEncoding.EncodeToString(hash([]byte("helloworld"))), nil)
-	resp, err = s.servers[0].KeySign(keysignReqWithErr2)
+	resp, err = s.servers[0].KeySign(keysignReqWithErr2, "ecdsa")
 	c.Assert(err, NotNil)
 	c.Assert(resp.S, Equals, "")
 	keysignReq := keysign.NewRequest(poolPubKey, base64.StdEncoding.EncodeToString(hash([]byte("helloworld"))), testPubKeys)
@@ -146,7 +146,7 @@ func (s *FourNodeTestSuite) TestKeygenAndKeySign(c *C) {
 		wg.Add(1)
 		go func(idx int) {
 			defer wg.Done()
-			res, err := s.servers[idx].KeySign(keysignReq)
+			res, err := s.servers[idx].KeySign(keysignReq, "ecdsa")
 			c.Assert(err, IsNil)
 			lock.Lock()
 			defer lock.Unlock()
@@ -169,7 +169,7 @@ func (s *FourNodeTestSuite) TestKeygenAndKeySign(c *C) {
 		wg.Add(1)
 		go func(idx int) {
 			defer wg.Done()
-			res, err := s.servers[idx].KeySign(keysignReq)
+			res, err := s.servers[idx].KeySign(keysignReq, "ecdsa")
 			c.Assert(err, IsNil)
 			lock.Lock()
 			defer lock.Unlock()
@@ -199,7 +199,7 @@ func (s *FourNodeTestSuite) TestFailJoinParty(c *C) {
 		wg.Add(1)
 		go func(idx int) {
 			defer wg.Done()
-			res, err := s.servers[idx].Keygen(req)
+			res, err := s.servers[idx].Keygen(req, "ecdsa")
 			c.Assert(err, IsNil)
 			lock.Lock()
 			defer lock.Unlock()
@@ -232,7 +232,7 @@ func (s *FourNodeTestSuite) TestBlame(c *C) {
 		wg.Add(1)
 		go func(idx int) {
 			defer wg.Done()
-			res, err := s.servers[idx].Keygen(req)
+			res, err := s.servers[idx].Keygen(req, "ecdsa")
 			c.Assert(err, NotNil)
 			lock.Lock()
 			defer lock.Unlock()
