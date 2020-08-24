@@ -14,11 +14,12 @@ import (
 	"gitlab.com/thorchain/tss/go-tss/conversion"
 	"gitlab.com/thorchain/tss/go-tss/keysign"
 	"gitlab.com/thorchain/tss/go-tss/keysign/ecdsa"
-	//"gitlab.com/thorchain/tss/go-tss/keysign/eddsa"
+	"gitlab.com/thorchain/tss/go-tss/keysign/eddsa"
+
 	"gitlab.com/thorchain/tss/go-tss/messages"
 )
 
-func (t *TssServer) KeySign(req keysign.Request, algo string) (keysign.Response, error) {
+func (t *TssServer) KeySign(req keysign.Request) (keysign.Response, error) {
 	t.logger.Info().Str("pool pub key", req.PoolPubKey).
 		Str("signer pub keys", strings.Join(req.SignerPubKeys, ",")).
 		Str("msg", req.Message).
@@ -30,7 +31,7 @@ func (t *TssServer) KeySign(req keysign.Request, algo string) (keysign.Response,
 	}
 	var keysignInstance keysign.TssKeySign
 
-	switch algo {
+	switch req.Algo {
 	case "ecdsa":
 		keysignInstance = ecdsa.NewTssKeySign(
 			t.p2pCommunication.GetLocalPeerID(),
@@ -42,17 +43,17 @@ func (t *TssServer) KeySign(req keysign.Request, algo string) (keysign.Response,
 			t.p2pCommunication,
 			t.stateManager,
 		)
-	// case "eddsa":
-	//	keysignInstance = eddsa.NewTssKeySign(
-	//		t.p2pCommunication.GetLocalPeerID(),
-	//		t.conf,
-	//		t.p2pCommunication.BroadcastMsgChan,
-	//		t.stopChan,
-	//		msgID,
-	//		t.privateKey,
-	//		t.p2pCommunication,
-	//		t.stateManager,
-	//	)
+	case "eddsa":
+		keysignInstance = eddsa.NewTssKeySign(
+			t.p2pCommunication.GetLocalPeerID(),
+			t.conf,
+			t.p2pCommunication.BroadcastMsgChan,
+			t.stopChan,
+			msgID,
+			t.privateKey,
+			t.p2pCommunication,
+			t.stateManager,
+		)
 	default:
 		return keysign.Response{}, errors.New("invalid keysign algo")
 	}

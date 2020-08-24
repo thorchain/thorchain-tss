@@ -4,6 +4,8 @@ import (
 	"errors"
 	"sync/atomic"
 
+	"github.com/binance-chain/go-sdk/common/types"
+
 	"gitlab.com/thorchain/tss/go-tss/blame"
 	"gitlab.com/thorchain/tss/go-tss/common"
 	"gitlab.com/thorchain/tss/go-tss/conversion"
@@ -11,11 +13,10 @@ import (
 	"gitlab.com/thorchain/tss/go-tss/keygen/ecdsa"
 	"gitlab.com/thorchain/tss/go-tss/keygen/eddsa"
 
-	//"gitlab.com/thorchain/tss/go-tss/keygen/eddsa"
 	"gitlab.com/thorchain/tss/go-tss/messages"
 )
 
-func (t *TssServer) Keygen(req keygen.Request, algo string) (keygen.Response, error) {
+func (t *TssServer) Keygen(req keygen.Request) (keygen.Response, error) {
 	t.tssKeyGenLocker.Lock()
 	defer t.tssKeyGenLocker.Unlock()
 	status := common.Success
@@ -25,7 +26,7 @@ func (t *TssServer) Keygen(req keygen.Request, algo string) (keygen.Response, er
 	}
 
 	var keygenInstance keygen.TssKeyGen
-	switch algo {
+	switch req.Algo {
 	case "ecdsa":
 		keygenInstance = ecdsa.NewTssKeyGen(
 			t.p2pCommunication.GetLocalPeerID(),
@@ -107,13 +108,21 @@ func (t *TssServer) Keygen(req keygen.Request, algo string) (keygen.Response, er
 		atomic.AddUint64(&t.Status.SucKeyGen, 1)
 	}
 
-	newPubKey, addr, err := conversion.GetTssPubKeyECDSA(k)
+	blameNodes := *blameMgr.GetBlame()
+	var newPubKey string
+	var addr types.AccAddress
+	switch req.Algo {
+	case "ecdsa":
+		newPubKey, addr, err = conversion.GetTssPubKeyECDSA(k)
+	case "eddsa":
+		newPubKey, addr, err = conversion.GetTssPubKeyEDDSA(k)
+	default:
+		newPubKey, addr, err = conversion.GetTssPubKeyECDSA(k)
+	}
 	if err != nil {
 		t.logger.Error().Err(err).Msg("fail to generate the new Tss key")
 		status = common.Fail
 	}
-
-	blameNodes := *blameMgr.GetBlame()
 	return keygen.NewResponse(
 		newPubKey,
 		addr.String(),

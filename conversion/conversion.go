@@ -154,7 +154,7 @@ func GetTssPubKeyEDDSA(pubKeyPoint *crypto.ECPoint) (string, types.AccAddress, e
 		return "", types.AccAddress{}, errors.New("invalid points")
 	}
 	tssPubKey := edwards.PublicKey{
-		Curve: btss.EC(),
+		Curve: edwards.Edwards(),
 		X:     pubKeyPoint.X(),
 		Y:     pubKeyPoint.Y(),
 	}

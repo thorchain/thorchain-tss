@@ -157,7 +157,7 @@ func getPreparams(c *C) []*ecdsakeygen.LocalPreParams {
 
 func (s *EcdsaKeygenTestSuite) TestGenerateNewKey(c *C) {
 	sort.Strings(testPubKeys)
-	req := keygen.NewRequest(testPubKeys)
+	req := keygen.NewRequest(testPubKeys, "ecdsa")
 	messageID, err := common.MsgToHashString([]byte(strings.Join(req.Keys, "")))
 	c.Assert(err, IsNil)
 	conf := common.TssConfig{
@@ -210,7 +210,7 @@ func (s *EcdsaKeygenTestSuite) TestGenerateNewKey(c *C) {
 
 func (s *EcdsaKeygenTestSuite) TestGenerateNewKeyWithStop(c *C) {
 	sort.Strings(testPubKeys)
-	req := keygen.NewRequest(testPubKeys)
+	req := keygen.NewRequest(testPubKeys, "ecdsa")
 	messageID, err := common.MsgToHashString([]byte(strings.Join(req.Keys, "")))
 	c.Assert(err, IsNil)
 	conf := common.TssConfig{

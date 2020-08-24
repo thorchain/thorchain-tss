@@ -134,7 +134,7 @@ func (s *EddsaKeygenTestSuite) TearDownTest(c *C) {
 
 func (s *EddsaKeygenTestSuite) TestGenerateNewKey(c *C) {
 	sort.Strings(testPubKeys)
-	req := keygen.NewRequest(testPubKeys)
+	req := keygen.NewRequest(testPubKeys, "eddsa")
 	messageID, err := common.MsgToHashString([]byte(strings.Join(req.Keys, "")))
 	c.Assert(err, IsNil)
 	conf := common.TssConfig{
