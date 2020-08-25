@@ -151,6 +151,26 @@ func (tKeySign *TssKeySign) processKeySign(errChan chan struct{}, outCh <-chan b
 			// we bail out after KeySignTimeoutSeconds
 			tKeySign.logger.Error().Msgf("fail to sign message with %s", tssConf.KeySignTimeout.String())
 			lastMsg := blameMgr.GetLastMsg()
+			data, r, err := lastMsg.WireBytes()
+			if err != nil {
+				tKeySign.logger.Error().Msgf("fail to get the message data and routing %s", err.Error())
+			}
+			wireMsg := messages.WireMessage{
+				Routing: r,
+				Message: data,
+			}
+			n, err := common.GetMsgRound(&wireMsg, lastMsg.GetFrom())
+			if err != nil {
+				tKeySign.logger.Error().Msgf("fail to get the round info %s", err.Error())
+				blameMgr.GetBlame().Confidence = false
+			} else {
+				// if we are in the last round of keygen and we fail, we know that all the previous unicast
+				// operations should be successful.
+				if n.Index > 3 {
+					blameMgr.GetBlame().Confidence = true
+				}
+			}
+
 			failReason := blameMgr.GetBlame().FailReason
 			if failReason == "" {
 				failReason = blame.TssTimeout

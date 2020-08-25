@@ -38,7 +38,7 @@ func (b *Blame) IsEmpty() bool {
 // String implement fmt.Stringer
 func (b Blame) String() string {
 	sb := strings.Builder{}
-	sb.WriteString("reason:" + b.FailReason + " is_unicast:" + strconv.FormatBool(b.IsUnicast) + "\n")
+	sb.WriteString("reason:" + b.FailReason + " is_unicast:" + strconv.FormatBool(b.IsUnicast) + " confidence:" + strconv.FormatBool(b.Confidence) + "\n")
 	sb.WriteString(fmt.Sprintf("nodes:%+v\n", b.BlameNodes))
 	return sb.String()
 }
