@@ -26,4 +26,4 @@ log
 *.log
 *.ldb
 *.out
-
+cmd/tss/tss

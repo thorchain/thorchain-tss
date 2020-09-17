@@ -12,6 +12,7 @@ stages:
   - test
   - build
   - smoke-test
+  - release
 
 unit_tests:
   stage: test
@@ -45,3 +46,13 @@ build-docker:
   script:
     - make docker-gitlab-build
     - make docker-gitlab-push
+
+release:
+  stage: release
+  image: registry.gitlab.com/thorchain/release-tool:latest
+  only:
+    - master
+  except:
+    - schedules
+  script:
+    - release-tool changelog
