@@ -12,23 +12,19 @@ require (
 	github.com/decred/dcrd/dcrec/secp256k1 v1.0.3
 	github.com/golang/mock v1.4.0 // indirect
 	github.com/golang/protobuf v1.4.2
-	github.com/google/gopacket v1.1.18 // indirect
 	github.com/gorilla/mux v1.7.3
 	github.com/ipfs/go-log v1.0.4
-	github.com/libp2p/go-libp2p v0.10.3
+	github.com/libp2p/go-libp2p v0.11.0
 	github.com/libp2p/go-libp2p-core v0.6.1
 	github.com/libp2p/go-libp2p-discovery v0.5.0
-	github.com/libp2p/go-libp2p-kad-dht v0.5.2
+	github.com/libp2p/go-libp2p-kad-dht v0.10.0
 	github.com/libp2p/go-libp2p-peerstore v0.2.6
-	github.com/libp2p/go-libp2p-testing v0.1.2-0.20200422005655-8775583591d8
+	github.com/libp2p/go-libp2p-testing v0.2.0
 	github.com/libp2p/go-mplex v0.1.3 // indirect
 	github.com/libp2p/go-sockaddr v0.1.0 // indirect
-	github.com/libp2p/go-tcp-transport v0.2.1 // indirect
 	github.com/libp2p/go-yamux v1.3.8 // indirect
 	github.com/magiconair/properties v1.8.1
-	github.com/multiformats/go-multiaddr v0.3.0
-	github.com/multiformats/go-multiaddr-net v0.2.0 // indirect
-	github.com/onsi/ginkgo v1.12.1 // indirect
+	github.com/multiformats/go-multiaddr v0.3.1
 	github.com/rs/zerolog v1.17.2
 	github.com/stretchr/testify v1.6.1
 	github.com/tendermint/btcd v0.1.1
