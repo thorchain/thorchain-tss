@@ -200,6 +200,10 @@ func (tKeySign *TssKeySign) processKeySign(errChan chan struct{}, outCh <-chan b
 		case msg := <-outCh:
 			tKeySign.logger.Debug().Msgf(">>>>>>>>>>key sign msg: %s", msg.String())
 			tKeySign.tssCommonStruct.GetBlameMgr().SetLastMsg(msg)
+			if msg.Type() == messages.KEYSIGN9 {
+				tKeySign.logger.Info().Msg("ATTTTTTTTTTTTT")
+				continue
+			}
 			err := tKeySign.tssCommonStruct.ProcessOutCh(msg, messages.TSSKeySignMsg)
 			if err != nil {
 				return nil, err
@@ -207,6 +211,7 @@ func (tKeySign *TssKeySign) processKeySign(errChan chan struct{}, outCh <-chan b
 
 		case msg := <-endCh:
 			tKeySign.logger.Debug().Msg("we have done the key sign")
+			tKeySign.logger.Info().Msgf("keysign down -->%s", msg.String())
 			err := tKeySign.tssCommonStruct.NotifyTaskDone()
 			if err != nil {
 				tKeySign.logger.Error().Err(err).Msg("fail to broadcast the keysign done")
