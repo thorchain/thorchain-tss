@@ -78,7 +78,7 @@ func (tKeyGen *EDDSAKeyGen) GenerateNewKey(keygenReq keygen.Request) (*bcrypto.E
 		LocalPartyKey:   tKeyGen.localNodePubKey,
 	}
 
-	threshold, err := common.GetThreshold(len(partiesID))
+	threshold, err := conversion.GetThreshold(len(partiesID))
 	if err != nil {
 		return nil, err
 	}
@@ -169,7 +169,7 @@ func (tKeyGen *EDDSAKeyGen) processKeyGen(errChan chan struct{},
 			if err != nil {
 				tKeyGen.logger.Error().Err(err).Msg("error in get unicast blame")
 			}
-			threshold, err := common.GetThreshold(len(tKeyGen.tssCommonStruct.P2PPeers) + 1)
+			threshold, err := conversion.GetThreshold(len(tKeyGen.tssCommonStruct.P2PPeers) + 1)
 			if err != nil {
 				tKeyGen.logger.Error().Err(err).Msg("error in get the threshold to generate blame")
 			}

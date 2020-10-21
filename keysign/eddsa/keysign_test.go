@@ -165,7 +165,7 @@ func (s *TssKeysignTestSuite) TestSignMessage(c *C) {
 		return
 	}
 	sort.Strings(testPubKeys)
-	req := keysign.NewRequest("thorpub1addwnpepq0shpn7n4hpn0xrqkaeg3upjnulxupkxzqk7x8udkp8heyu7mtymsa0lyz9", "helloworld-test111", testPubKeys, "eddsa")
+	req := keysign.NewRequest("thorpub1addwnpepq0shpn7n4hpn0xrqkaeg3upjnulxupkxzqk7x8udkp8heyu7mtymsa0lyz9", "helloworld-test111", 10, testPubKeys, "0.16.0", "eddsa")
 	messageID, err := common.MsgToHashString([]byte(req.Message))
 	c.Assert(err, IsNil)
 	wg := sync.WaitGroup{}

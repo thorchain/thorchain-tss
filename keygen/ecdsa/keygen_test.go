@@ -93,7 +93,7 @@ func (s *EcdsaKeygenTestSuite) SetUpSuite(c *C) {
 	}
 }
 
-func (s *TssKeygenTestSuite) TearDownSuite(c *C) {
+func (s *EcdsaKeygenTestSuite) TearDownSuite(c *C) {
 	for i, _ := range s.comms {
 		tempFilePath := path.Join(os.TempDir(), strconv.Itoa(i))
 		err := os.RemoveAll(tempFilePath)
@@ -165,7 +165,7 @@ func getPreparams(c *C) []*ecdsakeygen.LocalPreParams {
 
 func (s *EcdsaKeygenTestSuite) TestGenerateNewKey(c *C) {
 	sort.Strings(testPubKeys)
-	req := NewRequest(testPubKeys, 10, "ecdsa", "")
+	req := keygen.NewRequest(testPubKeys, 10, "0.16.0", "ecdsa")
 	messageID, err := common.MsgToHashString([]byte(strings.Join(req.Keys, "")))
 	c.Assert(err, IsNil)
 	conf := common.TssConfig{
@@ -218,7 +218,7 @@ func (s *EcdsaKeygenTestSuite) TestGenerateNewKey(c *C) {
 
 func (s *EcdsaKeygenTestSuite) TestGenerateNewKeyWithStop(c *C) {
 	sort.Strings(testPubKeys)
-	req := NewRequest(testPubKeys, 10, "ecdsa", "")
+	req := keygen.NewRequest(testPubKeys, 10, "0.16.0", "ecdsa")
 	messageID, err := common.MsgToHashString([]byte(strings.Join(req.Keys, "")))
 	c.Assert(err, IsNil)
 	conf := common.TssConfig{

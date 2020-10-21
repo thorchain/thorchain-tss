@@ -10,7 +10,7 @@ type Request struct {
 	Algo          string   `json:"algo"`
 }
 
-func NewRequest(pk, msg, algo string, blockHeight int64, signers []string, version string) Request {
+func NewRequest(pk, msg string, blockHeight int64, signers []string, version, algo string) Request {
 	return Request{
 		PoolPubKey:    pk,
 		Message:       msg,

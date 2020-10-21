@@ -93,12 +93,12 @@ func (s *EddsaKeygenTestSuite) SetUpSuite(c *C) {
 // SetUpTest set up environment for test key gen
 func (s *EddsaKeygenTestSuite) SetUpTest(c *C) {
 	ports := []int{
-		18666, 18667, 18668, 18669,
+		19666, 19667, 19668, 19669,
 	}
 	s.partyNum = 4
 	s.comms = make([]*p2p.Communication, s.partyNum)
 	s.stateMgrs = make([]storage.LocalStateManager, s.partyNum)
-	bootstrapPeer := "/ip4/127.0.0.1/tcp/18666/p2p/16Uiu2HAm4TmEzUqy3q3Dv7HvdoSboHk5sFj2FH3npiN5vDbJC6gh"
+	bootstrapPeer := "/ip4/127.0.0.1/tcp/19666/p2p/16Uiu2HAm4TmEzUqy3q3Dv7HvdoSboHk5sFj2FH3npiN5vDbJC6gh"
 	multiAddr, err := maddr.NewMultiaddr(bootstrapPeer)
 	c.Assert(err, IsNil)
 	for i := 0; i < s.partyNum; i++ {
@@ -125,6 +125,14 @@ func (s *EddsaKeygenTestSuite) SetUpTest(c *C) {
 	}
 }
 
+func (s *EddsaKeygenTestSuite) TearDownSuite(c *C) {
+	for i, _ := range s.comms {
+		tempFilePath := path.Join(os.TempDir(), strconv.Itoa(i))
+		err := os.RemoveAll(tempFilePath)
+		c.Assert(err, IsNil)
+	}
+}
+
 func (s *EddsaKeygenTestSuite) TearDownTest(c *C) {
 	time.Sleep(time.Second)
 	for _, item := range s.comms {
@@ -134,7 +142,7 @@ func (s *EddsaKeygenTestSuite) TearDownTest(c *C) {
 
 func (s *EddsaKeygenTestSuite) TestGenerateNewKey(c *C) {
 	sort.Strings(testPubKeys)
-	req := keygen.NewRequest(testPubKeys, "eddsa")
+	req := keygen.NewRequest(testPubKeys, 1, "0.15.0", "eddsa")
 	messageID, err := common.MsgToHashString([]byte(strings.Join(req.Keys, "")))
 	c.Assert(err, IsNil)
 	conf := common.TssConfig{

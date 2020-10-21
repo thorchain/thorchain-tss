@@ -72,7 +72,7 @@ func (tKeySign *EDDSAKeySign) SignMessage(msgToSign []byte, localStateItem stora
 		tKeySign.logger.Info().Msgf("we are not in this rounds key sign")
 		return nil, nil
 	}
-	threshold, err := common.GetThreshold(len(localStateItem.ParticipantKeys))
+	threshold, err := conversion.GetThreshold(len(localStateItem.ParticipantKeys))
 	if err != nil {
 		return nil, errors.New("fail to get threshold")
 	}
@@ -163,7 +163,7 @@ func (tKeySign *EDDSAKeySign) processKeySign(errChan chan struct{}, outCh <-chan
 			if failReason == "" {
 				failReason = blame.TssTimeout
 			}
-			threshold, err := common.GetThreshold(len(tKeySign.tssCommonStruct.P2PPeers) + 1)
+			threshold, err := conversion.GetThreshold(len(tKeySign.tssCommonStruct.P2PPeers) + 1)
 			if err != nil {
 				tKeySign.logger.Error().Err(err).Msg("error in get the threshold for generate blame")
 			}

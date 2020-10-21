@@ -4,13 +4,14 @@ import (
 	"errors"
 	"time"
 
+	"github.com/binance-chain/go-sdk/common/types"
+
 	"gitlab.com/thorchain/tss/go-tss/blame"
 	"gitlab.com/thorchain/tss/go-tss/common"
 	"gitlab.com/thorchain/tss/go-tss/conversion"
 	"gitlab.com/thorchain/tss/go-tss/keygen"
 	"gitlab.com/thorchain/tss/go-tss/keygen/ecdsa"
 	"gitlab.com/thorchain/tss/go-tss/keygen/eddsa"
-
 	"gitlab.com/thorchain/tss/go-tss/messages"
 )
 

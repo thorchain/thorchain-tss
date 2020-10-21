@@ -129,6 +129,7 @@ func (m *Manager) TssWrongShareBlame(wiredMsg *messages.WireMessage) (string, er
 }
 
 // this blame blames the node fail to send the shares to the node
+// todo update for eddsa is needed
 func (m *Manager) TssMissingShareBlame(rounds int) ([]Node, bool, error) {
 	cachedShares := make([][]string, rounds)
 	m.acceptedShares.Range(func(key, value interface{}) bool {
