@@ -183,6 +183,17 @@ func (tKeyGen *EDDSAKeyGen) processKeyGen(errChan chan struct{},
 			}
 			blameMgr.GetBlame().AddBlameNodes(blameNodesBroadcast...)
 
+			// if we cannot find the blame node, we check whether everyone send me the share
+			if len(blameMgr.GetBlame().BlameNodes) == 0 {
+				blameNodesMisingShare, isUnicast, err := blameMgr.TssMissingShareBlame(messages.TSSKEYGENROUNDS)
+				if err != nil {
+					tKeyGen.logger.Error().Err(err).Msg("fail to get the node of missing share ")
+				}
+				if len(blameNodesMisingShare) > 0 && len(blameNodesMisingShare) <= threshold {
+					blameMgr.GetBlame().AddBlameNodes(blameNodesMisingShare...)
+					blameMgr.GetBlame().IsUnicast = isUnicast
+				}
+			}
 			return nil, blame.ErrTssTimeOut
 
 		case msg := <-outCh:

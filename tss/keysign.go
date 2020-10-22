@@ -151,7 +151,6 @@ func (t *TssServer) generateSignature(msgID string, msgToSign []byte, req keysig
 			Blame:  blameNodes,
 		}, nil
 	}
-
 	sigChan <- "signature generated"
 	// update signature notification
 	if err := t.signatureNotifier.BroadcastSignature(msgID, signatureData, allPeersID); err != nil {
@@ -276,7 +275,7 @@ func (t *TssServer) KeySign(req keysign.Request) (keysign.Response, error) {
 		// we received an valid signature indeed
 		if errWait == nil {
 			sigChan <- "signature received"
-			t.logger.Log().Msgf("for message %s we get the signature from the peer", msgID)
+			t.logger.Info().Msgf("for message %s we get the signature from the peer", msgID)
 		}
 	}()
 
@@ -295,7 +294,6 @@ func (t *TssServer) KeySign(req keysign.Request) (keysign.Response, error) {
 	}
 	// for this round, we are not the active signer
 	if errors.Is(errGen, p2p.ErrSignReceived) {
-
 		t.updateKeySignResult(receivedSig, keysignTime)
 		return receivedSig, nil
 	}

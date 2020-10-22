@@ -190,6 +190,20 @@ func (tKeySign *EDDSAKeySign) processKeySign(errChan chan struct{}, outCh <-chan
 				tKeySign.logger.Error().Err(err).Msg("error in get broadcast blame")
 			}
 			blameMgr.GetBlame().AddBlameNodes(blameNodesBroadcast...)
+
+			// if we cannot find the blame node, we check whether everyone send me the share
+			if len(blameMgr.GetBlame().BlameNodes) == 0 {
+				blameNodesMisingShare, isUnicast, err := blameMgr.TssMissingShareBlame(messages.TSSKEYSIGNROUNDS)
+				if err != nil {
+					tKeySign.logger.Error().Err(err).Msg("fail to get the node of missing share ")
+				}
+
+				if len(blameNodesMisingShare) > 0 && len(blameNodesMisingShare) <= threshold {
+					blameMgr.GetBlame().AddBlameNodes(blameNodesMisingShare...)
+					blameMgr.GetBlame().IsUnicast = isUnicast
+				}
+			}
+
 			return nil, blame.ErrTssTimeOut
 		case msg := <-outCh:
 			tKeySign.logger.Debug().Msgf(">>>>>>>>>>key sign msg: %s", msg.String())

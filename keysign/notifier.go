@@ -70,9 +70,8 @@ func (n *Notifier) verifySignature(data *bc.SignatureData) (bool, error) {
 
 		newSig, err := edwards.ParseSignature(data.Signature)
 		if err != nil {
-			println("new sig error, ", err.Error())
+			return false, err
 		}
-
 		return edwards.Verify(bPk, n.message, newSig.R, newSig.S), nil
 	default:
 		return false, errors.New("invalid pubkey type")
