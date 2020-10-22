@@ -89,7 +89,7 @@ func (s *MockLocalStateManager) RetrieveP2PAddresses() (addr.AddrList, error) {
 	return nil, os.ErrNotExist
 }
 
-type TssKeysignTestSuite struct {
+type EddsaKeysignTestSuite struct {
 	comms        []*p2p.Communication
 	partyNum     int
 	stateMgrs    []storage.LocalStateManager
@@ -97,9 +97,9 @@ type TssKeysignTestSuite struct {
 	targetPeers  []peer.ID
 }
 
-var _ = Suite(&TssKeysignTestSuite{})
+var _ = Suite(&EddsaKeysignTestSuite{})
 
-func (s *TssKeysignTestSuite) SetUpSuite(c *C) {
+func (s *EddsaKeysignTestSuite) SetUpSuite(c *C) {
 	conversion.SetupBech32Prefix()
 	common.InitLog("info", true, "keysign_test")
 
@@ -121,18 +121,18 @@ func (s *TssKeysignTestSuite) SetUpSuite(c *C) {
 	}
 }
 
-func (s *TssKeysignTestSuite) SetUpTest(c *C) {
+func (s *EddsaKeysignTestSuite) SetUpTest(c *C) {
 	if testing.Short() {
 		c.Skip("skip the test")
 		return
 	}
 	ports := []int{
-		17666, 17667, 17668, 17669,
+		15666, 15667, 15668, 15669,
 	}
 	s.partyNum = 4
 	s.comms = make([]*p2p.Communication, s.partyNum)
 	s.stateMgrs = make([]storage.LocalStateManager, s.partyNum)
-	bootstrapPeer := "/ip4/127.0.0.1/tcp/17666/p2p/16Uiu2HAm4TmEzUqy3q3Dv7HvdoSboHk5sFj2FH3npiN5vDbJC6gh"
+	bootstrapPeer := "/ip4/127.0.0.1/tcp/15666/p2p/16Uiu2HAm4TmEzUqy3q3Dv7HvdoSboHk5sFj2FH3npiN5vDbJC6gh"
 	multiAddr, err := maddr.NewMultiaddr(bootstrapPeer)
 	c.Assert(err, IsNil)
 	for i := 0; i < s.partyNum; i++ {
@@ -159,7 +159,7 @@ func (s *TssKeysignTestSuite) SetUpTest(c *C) {
 	}
 }
 
-func (s *TssKeysignTestSuite) TestSignMessage(c *C) {
+func (s *EddsaKeysignTestSuite) TestSignMessage(c *C) {
 	if testing.Short() {
 		c.Skip("skip the test")
 		return
@@ -219,7 +219,7 @@ func (s *TssKeysignTestSuite) TestSignMessage(c *C) {
 	}
 }
 
-func (s *TssKeysignTestSuite) TearDownTest(c *C) {
+func (s *EddsaKeysignTestSuite) TearDownTest(c *C) {
 	if testing.Short() {
 		c.Skip("skip the test")
 		return
@@ -230,7 +230,7 @@ func (s *TssKeysignTestSuite) TearDownTest(c *C) {
 	}
 }
 
-func (s *TssKeysignTestSuite) TestCloseKeySignnotifyChannel(c *C) {
+func (s *EddsaKeysignTestSuite) TestCloseKeySignnotifyChannel(c *C) {
 	conf := common.TssConfig{}
 	keySignInstance := NewTssKeySign("", conf, nil, nil, "test", s.nodePrivKeys[0], s.comms[0], s.stateMgrs[0])
 

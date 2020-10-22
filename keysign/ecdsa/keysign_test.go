@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"path"
 	"sort"
 	"strconv"
 	"strings"
@@ -94,7 +93,7 @@ func (s *MockLocalStateManager) RetrieveP2PAddresses() (addr.AddrList, error) {
 	return nil, os.ErrNotExist
 }
 
-type TssKeysignTestSuite struct {
+type EcdsaKeysignTestSuite struct {
 	comms        []*p2p.Communication
 	partyNum     int
 	stateMgrs    []storage.LocalStateManager
@@ -102,9 +101,9 @@ type TssKeysignTestSuite struct {
 	targetPeers  []peer.ID
 }
 
-var _ = Suite(&TssKeysignTestSuite{})
+var _ = Suite(&EcdsaKeysignTestSuite{})
 
-func (s *TssKeysignTestSuite) SetUpSuite(c *C) {
+func (s *EcdsaKeysignTestSuite) SetUpSuite(c *C) {
 	conversion.SetupBech32Prefix()
 	common.InitLog("info", true, "keysign_test")
 
@@ -126,7 +125,7 @@ func (s *TssKeysignTestSuite) SetUpSuite(c *C) {
 	}
 }
 
-func (s *TssKeysignTestSuite) SetUpTest(c *C) {
+func (s *EcdsaKeysignTestSuite) SetUpTest(c *C) {
 	if testing.Short() {
 		c.Skip("skip the test")
 		return
@@ -164,7 +163,7 @@ func (s *TssKeysignTestSuite) SetUpTest(c *C) {
 	}
 }
 
-func (s *TssKeysignTestSuite) TestSignMessage(c *C) {
+func (s *EcdsaKeysignTestSuite) TestSignMessage(c *C) {
 	if testing.Short() {
 		c.Skip("skip the test")
 		return
@@ -248,7 +247,7 @@ func observeAndStop(c *C, tssKeySign *ECDSAKeySign, stopChan chan struct{}) {
 	}
 }
 
-func (s *TssKeysignTestSuite) TestSignMessageWithStop(c *C) {
+func (s *EcdsaKeysignTestSuite) TestSignMessageWithStop(c *C) {
 	if testing.Short() {
 		c.Skip("skip the test")
 		return
@@ -331,7 +330,7 @@ func rejectSendToOnePeer(c *C, tssKeySign *ECDSAKeySign, stopChan chan struct{},
 	}
 }
 
-func (s *TssKeysignTestSuite) TestSignMessageRejectOnePeer(c *C) {
+func (s *EcdsaKeysignTestSuite) TestSignMessageRejectOnePeer(c *C) {
 	if testing.Short() {
 		c.Skip("skip the test")
 		return
@@ -381,15 +380,7 @@ func (s *TssKeysignTestSuite) TestSignMessageRejectOnePeer(c *C) {
 	wg.Wait()
 }
 
-func (s *TssKeysignTestSuite) TearDownSuite(c *C) {
-	for i, _ := range s.comms {
-		tempFilePath := path.Join(os.TempDir(), strconv.Itoa(i))
-		err := os.RemoveAll(tempFilePath)
-		c.Assert(err, IsNil)
-	}
-}
-
-func (s *TssKeysignTestSuite) TearDownTest(c *C) {
+func (s *EcdsaKeysignTestSuite) TearDownTest(c *C) {
 	if testing.Short() {
 		c.Skip("skip the test")
 		return
@@ -400,7 +391,7 @@ func (s *TssKeysignTestSuite) TearDownTest(c *C) {
 	}
 }
 
-func (s *TssKeysignTestSuite) TestCloseKeySignnotifyChannel(c *C) {
+func (s *EcdsaKeysignTestSuite) TestCloseKeySignnotifyChannel(c *C) {
 	conf := common.TssConfig{}
 	keySignInstance := NewTssKeySign("", conf, nil, nil, "test", s.nodePrivKeys[0], s.comms[0], s.stateMgrs[0])
 

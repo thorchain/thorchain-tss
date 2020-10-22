@@ -93,14 +93,6 @@ func (s *EcdsaKeygenTestSuite) SetUpSuite(c *C) {
 	}
 }
 
-func (s *EcdsaKeygenTestSuite) TearDownSuite(c *C) {
-	for i, _ := range s.comms {
-		tempFilePath := path.Join(os.TempDir(), strconv.Itoa(i))
-		err := os.RemoveAll(tempFilePath)
-		c.Assert(err, IsNil)
-	}
-}
-
 // SetUpTest set up environment for test key gen
 func (s *EcdsaKeygenTestSuite) SetUpTest(c *C) {
 	ports := []int{
@@ -130,10 +122,18 @@ func (s *EcdsaKeygenTestSuite) SetUpTest(c *C) {
 	}
 
 	for i := 0; i < s.partyNum; i++ {
-		baseHome := path.Join(os.TempDir(), strconv.Itoa(i))
+		baseHome := path.Join(os.TempDir(), "ecdsa", strconv.Itoa(i))
 		fMgr, err := storage.NewFileStateMgr(baseHome)
 		c.Assert(err, IsNil)
 		s.stateMgrs[i] = fMgr
+	}
+}
+
+func (s *EcdsaKeygenTestSuite) TearDownSuite(c *C) {
+	for i, _ := range s.comms {
+		tempFilePath := path.Join(os.TempDir(), "ecdsa", strconv.Itoa(i))
+		err := os.RemoveAll(tempFilePath)
+		c.Assert(err, IsNil)
 	}
 }
 

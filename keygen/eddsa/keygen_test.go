@@ -118,7 +118,7 @@ func (s *EddsaKeygenTestSuite) SetUpTest(c *C) {
 	}
 
 	for i := 0; i < s.partyNum; i++ {
-		baseHome := path.Join(os.TempDir(), strconv.Itoa(i))
+		baseHome := path.Join(os.TempDir(), "eddsa", strconv.Itoa(i))
 		fMgr, err := storage.NewFileStateMgr(baseHome)
 		c.Assert(err, IsNil)
 		s.stateMgrs[i] = fMgr
@@ -127,7 +127,7 @@ func (s *EddsaKeygenTestSuite) SetUpTest(c *C) {
 
 func (s *EddsaKeygenTestSuite) TearDownSuite(c *C) {
 	for i, _ := range s.comms {
-		tempFilePath := path.Join(os.TempDir(), strconv.Itoa(i))
+		tempFilePath := path.Join(os.TempDir(), "eddsa", strconv.Itoa(i))
 		err := os.RemoveAll(tempFilePath)
 		c.Assert(err, IsNil)
 	}
