@@ -60,6 +60,29 @@ type FourNodeEcdsaTestSuite struct {
 
 var _ = Suite(&FourNodeEcdsaTestSuite{})
 
+func createfolder(c *C, algo string) {
+	folderPath1 := path.Join(os.TempDir(), algo)
+	if _, err := os.Stat(folderPath1); os.IsNotExist(err) {
+		err := os.Mkdir(folderPath1, os.ModePerm)
+		c.Assert(err, IsNil)
+	}
+	folderPath := path.Join(os.TempDir(), algo, "tss_4nodes_test")
+	if _, err := os.Stat(folderPath); os.IsNotExist(err) {
+		err := os.Mkdir(folderPath, os.ModePerm)
+		c.Assert(err, IsNil)
+	}
+}
+
+func (s *FourNodeEcdsaTestSuite) SetUpSuite(c *C) {
+	createfolder(c, "ecdsa")
+	createfolder(c, "eddsa")
+}
+
+func (s *FourNodeEcdsaTestSuite) TearDownSuite(c *C) {
+	err := os.RemoveAll(path.Join(os.TempDir(), s.algo))
+	c.Assert(err, IsNil)
+}
+
 // setup four nodes for test
 func (s *FourNodeEcdsaTestSuite) SetUpTest(c *C) {
 	common.InitLog("info", true, "four_nodes_test")
@@ -337,18 +360,10 @@ func (s *FourNodeEcdsaTestSuite) TearDownTest(c *C) {
 	}
 }
 
-func (s *FourNodeEcdsaTestSuite) TearDownSuit(c *C) {
-	// give a second before we shutdown the network
-	for i := 0; i < partyNum; i++ {
-		tempFilePath := path.Join(os.TempDir(), s.algo, strconv.Itoa(i))
-		os.RemoveAll(tempFilePath)
-	}
-}
-
 func (s *FourNodeEcdsaTestSuite) getTssServer(c *C, index int, conf common.TssConfig, bootstrap string) *TssServer {
 	priKey, err := conversion.GetPriKey(testPriKeyArr[index])
 	c.Assert(err, IsNil)
-	baseHome := path.Join(os.TempDir(), s.algo, strconv.Itoa(index))
+	baseHome := path.Join(os.TempDir(), s.algo, "tss_4nodes_test", strconv.Itoa(index))
 	if _, err := os.Stat(baseHome); os.IsNotExist(err) {
 		err := os.Mkdir(baseHome, os.ModePerm)
 		c.Assert(err, IsNil)

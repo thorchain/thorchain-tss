@@ -129,8 +129,7 @@ func (m *Manager) TssWrongShareBlame(wiredMsg *messages.WireMessage) (string, er
 }
 
 // this blame blames the node fail to send the shares to the node
-// todo update for eddsa is needed
-func (m *Manager) TssMissingShareBlame(rounds int) ([]Node, bool, error) {
+func (m *Manager) TssMissingShareBlame(rounds int, algo messages.Algo) ([]Node, bool, error) {
 	cachedShares := make([][]string, rounds)
 	m.acceptedShares.Range(func(key, value interface{}) bool {
 		data := value.([]string)
@@ -147,21 +146,33 @@ func (m *Manager) TssMissingShareBlame(rounds int) ([]Node, bool, error) {
 			continue
 		}
 		// we find whether the missing share is in unicast
-		if rounds == messages.TSSKEYGENROUNDS {
+		switch algo {
+		case messages.ECDSAKEYGEN:
 			// we are processing the keygen and if the missing shares is in second round(index=1)
 			// we mark it as the unicast.
 			if index == 1 {
 				isUnicast = true
 			}
-		}
-		if rounds == messages.TSSKEYSIGNROUNDS {
+		case messages.ECDSAKEYSIGN:
 			// we are processing the keysign and if the missing shares is in the 5 round(index<1)
 			// we all mark it as the unicast, because in some cases, the error will be detected
 			// in the following round, so we cannot "trust" the node stops at the current round.
 			if index < 5 {
 				isUnicast = true
 			}
+
+		case messages.EDDSAKEYGEN:
+			if index == 2 {
+				isUnicast = true
+			}
+		case messages.EDDSAKEYSIGN:
+			// currently, EDDSA do not have proof, so all the communication is broadcast.
+			isUnicast = false
+		default:
+			m.logger.Error().Msgf("fail to find the algorithm for this keygen/keysign, set unicast as false by default")
+			isUnicast = false
 		}
+
 		// we add our own id to avoid blame ourselves
 		el = append(el, m.partyInfo.Party.PartyID().Id)
 		for _, pid := range el {

@@ -123,12 +123,12 @@ func (p *policyTestSuite) TestTssMissingShareBlame(c *C) {
 	// we only allow a message be updated only once.
 	acceptedShares.Store(RoundInfo{0, "testRound"}, []string{"1", "2"})
 	acceptedShares.Store(RoundInfo{1, "testRound"}, []string{"1"})
-	nodes, _, err := blameMgr.TssMissingShareBlame(2)
+	nodes, _, err := blameMgr.TssMissingShareBlame(2, messages.ECDSAKEYGEN)
 	c.Assert(err, IsNil)
 	c.Assert(nodes[0].Pubkey, Equals, localTestPubKeys[3])
 	// we test if the missing share happens in round2
 	acceptedShares.Store(RoundInfo{0, "testRound"}, []string{"1", "2", "3"})
-	nodes, _, err = blameMgr.TssMissingShareBlame(2)
+	nodes, _, err = blameMgr.TssMissingShareBlame(2, messages.ECDSAKEYGEN)
 	c.Assert(err, IsNil)
 	results := []string{nodes[0].Pubkey, nodes[1].Pubkey}
 	sort.Strings(results)
