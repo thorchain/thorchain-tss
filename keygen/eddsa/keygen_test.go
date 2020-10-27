@@ -126,11 +126,9 @@ func (s *EddsaKeygenTestSuite) SetUpTest(c *C) {
 }
 
 func (s *EddsaKeygenTestSuite) TearDownSuite(c *C) {
-	for i, _ := range s.comms {
-		tempFilePath := path.Join(os.TempDir(), "eddsa", strconv.Itoa(i))
-		err := os.RemoveAll(tempFilePath)
-		c.Assert(err, IsNil)
-	}
+	tempFilePath := path.Join(os.TempDir(), "eddsa")
+	err := os.RemoveAll(tempFilePath)
+	c.Assert(err, IsNil)
 }
 
 func (s *EddsaKeygenTestSuite) TearDownTest(c *C) {
