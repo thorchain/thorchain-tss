@@ -192,16 +192,16 @@ func GetMsgRound(wireMsg *messages.WireMessage, partyID *btss.PartyID) (blame.Ro
 			Index:    7,
 			RoundMsg: messages.KEYSIGN7,
 		}, nil
-	case *signing.SignRound8Message:
-		return blame.RoundInfo{
-			Index:    8,
-			RoundMsg: messages.KEYSIGN8,
-		}, nil
-	case *signing.SignRound9Message:
-		return blame.RoundInfo{
-			Index:    9,
-			RoundMsg: messages.KEYSIGN9,
-		}, nil
+	// case *signing.SignRound8Message:
+	//	return blame.RoundInfo{
+	//		Index:    8,
+	//		RoundMsg: messages.KEYSIGN8,
+	//	}, nil
+	// case *signing.SignRound9Message:
+	//	return blame.RoundInfo{
+	//		Index:    9,
+	//		RoundMsg: messages.KEYSIGN9,
+	//	}, nil
 	default:
 		return blame.RoundInfo{}, errors.New("unknown round")
 	}
