@@ -251,7 +251,7 @@ func (c *Communication) startChannel(privKeyBytes []byte) error {
 	// client because we want each peer to maintain its own local copy of the
 	// DHT, so that the bootstrapping node of the DHT can go down without
 	// inhibiting future peer discovery.
-	kademliaDHT, err := dht.New(ctx, h, dht.Mode(dht.ModeServer))
+	kademliaDHT, err := dht.New(ctx, h, dht.Mode(dht.ModeServer), dht.BucketSize(100))
 	if err != nil {
 		return fmt.Errorf("fail to create DHT: %w", err)
 	}
