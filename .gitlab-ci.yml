@@ -52,6 +52,7 @@ release:
   image: registry.gitlab.com/thorchain/release-tool:latest
   only:
     - master
+    - chaosnet
   except:
     - schedules
   script:
