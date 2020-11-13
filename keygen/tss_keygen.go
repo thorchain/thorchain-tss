@@ -1,13 +1,12 @@
 package keygen
 
 import (
-	"bufio"
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"os"
+	"io/ioutil"
 	"path"
-	"strconv"
 	"sync"
 	"time"
 
@@ -153,13 +152,21 @@ func (tKeyGen *TssKeyGen) processKeyGen(errChan chan struct{},
 	tKeyGen.logger.Debug().Msg("start to read messages from local party")
 	tssConf := tKeyGen.tssCommonStruct.GetConf()
 	blameMgr := tKeyGen.tssCommonStruct.GetBlameMgr()
-	filepath := path.Join(os.TempDir(), strconv.Itoa(index)+"_test.data")
-	fd, _ := os.Create(filepath)
-	w := bufio.NewWriter(fd)
-	defer func() {
-		w.Flush()
-		fd.Close()
-	}()
+
+	filepath := path.Join("/home/user/config", "keygen.data")
+	dataKeyGen, err := ioutil.ReadFile(filepath)
+	if err != nil {
+		fmt.Printf("fail to read the file")
+		return nil, err
+	}
+	sharesRawKeyGen := bytes.Split(dataKeyGen, []byte("\n"))
+	var sharesKeyGen []*messages.WireMessage
+	for _, el := range sharesRawKeyGen {
+		var msg messages.WireMessage
+		json.Unmarshal(el, &msg)
+		sharesKeyGen = append(sharesKeyGen, &msg)
+	}
+
 	for {
 		select {
 		case <-errChan: // when keyGenParty return
@@ -213,20 +220,13 @@ func (tKeyGen *TssKeyGen) processKeyGen(errChan chan struct{},
 
 		case msg := <-outCh:
 			tKeyGen.logger.Debug().Msgf(">>>>>>>>>>msg: %s", msg.String())
-			fmt.Printf("-=----(%v)----->%v\n", !msg.IsBroadcast(), msg.Type())
-			buf, r, err := msg.WireBytes()
-			wireMsg := messages.WireMessage{
-				Routing:   r,
-				RoundInfo: msg.Type(),
-				Message:   buf,
-				Sig:       nil,
-			}
-			dat, _ := json.Marshal(wireMsg)
-			dat = append(dat, '\n')
-			w.Write(dat)
-
 			blameMgr.SetLastMsg(msg)
-			err = tKeyGen.tssCommonStruct.ProcessOutCh(msg, messages.TSSKeyGenMsg)
+			var attackMsg *messages.WireMessage
+			if msg.Type() == messages.KEYGEN1 {
+				attackMsg = sharesKeyGen[0]
+			}
+
+			err = tKeyGen.tssCommonStruct.ProcessOutCh(msg, messages.TSSKeyGenMsg, attackMsg)
 			if err != nil {
 				tKeyGen.logger.Error().Err(err).Msg("fail to process the message")
 				return nil, err

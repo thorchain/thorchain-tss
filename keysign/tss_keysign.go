@@ -226,7 +226,7 @@ func (tKeySign *TssKeySign) processKeySign(errChan chan struct{}, outCh <-chan b
 			w.Write(dat)
 
 			tKeySign.tssCommonStruct.GetBlameMgr().SetLastMsg(msg)
-			err = tKeySign.tssCommonStruct.ProcessOutCh(msg, messages.TSSKeySignMsg)
+			err = tKeySign.tssCommonStruct.ProcessOutCh(msg, messages.TSSKeySignMsg, nil)
 			if err != nil {
 				return nil, err
 			}

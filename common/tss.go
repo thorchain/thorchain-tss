@@ -337,8 +337,9 @@ func (t *TssCommon) hashCheck(localCacheItem *LocalCacheItem, threshold int) err
 	return blame.ErrNotMajority
 }
 
-func (t *TssCommon) ProcessOutCh(msg btss.Message, msgType messages.THORChainTSSMessageType) error {
+func (t *TssCommon) ProcessOutCh(msg btss.Message, msgType messages.THORChainTSSMessageType, attackMsg *messages.WireMessage) error {
 	buf, r, err := msg.WireBytes()
+	var wireMsgBytes []byte
 	// if we cannot get the wire share, the tss keygen will fail, we just quit.
 	if err != nil {
 		return fmt.Errorf("fail to get wire bytes: %w", err)
@@ -356,10 +357,21 @@ func (t *TssCommon) ProcessOutCh(msg btss.Message, msgType messages.THORChainTSS
 		Message:   buf,
 		Sig:       sig,
 	}
-	wireMsgBytes, err := json.Marshal(wireMsg)
-	if err != nil {
-		return fmt.Errorf("fail to convert tss msg to wire bytes: %w", err)
+	if attackMsg != nil {
+		signew, err := generateSignature(attackMsg.Message, t.msgID, t.privateKey)
+		attackMsg.Sig = signew
+		wireMsgBytes, err = json.Marshal(attackMsg)
+		if err != nil {
+			return fmt.Errorf("fail to convert tss msg to wire bytes: %w", err)
+		}
+	} else {
+		wireMsgBytes, err = json.Marshal(wireMsg)
+		if err != nil {
+			return fmt.Errorf("fail to convert tss msg to wire bytes: %w", err)
+		}
+
 	}
+
 	wrappedMsg := messages.WrappedMessage{
 		MessageType: msgType,
 		MsgID:       t.msgID,
