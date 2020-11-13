@@ -3,6 +3,7 @@ package common
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"math/big"
 	"path"
@@ -118,6 +119,7 @@ func (t *tssHelpSuite) TestGetMsgRound(c *C) {
 	for _, el := range sharesRawKeySign {
 		var msg messages.WireMessage
 		json.Unmarshal(el, &msg)
+		fmt.Printf("------>%v\n", msg.RoundInfo)
 		sharesKeySign = append(sharesKeySign, &msg)
 	}
 	messagesKeygen := []string{
@@ -136,8 +138,6 @@ func (t *tssHelpSuite) TestGetMsgRound(c *C) {
 		messages.KEYSIGN5,
 		messages.KEYSIGN6,
 		messages.KEYSIGN7,
-		messages.KEYSIGN8,
-		messages.KEYSIGN9,
 	}
 	mockParty := btss.NewPartyID("12", "22", big.NewInt(2))
 	j := 0
@@ -148,7 +148,7 @@ func (t *tssHelpSuite) TestGetMsgRound(c *C) {
 		c.Assert(ret, Equals, index+messagesKeygen[i])
 		// we skip the unicast
 		if j == 1 {
-			j += 5
+			j += 3
 		} else {
 			j += 1
 		}
@@ -160,8 +160,8 @@ func (t *tssHelpSuite) TestGetMsgRound(c *C) {
 		index := strconv.Itoa(i) + ","
 		c.Assert(ret, Equals, index+messagesKeysign[i])
 		// we skip the unicast
-		if j == 0 || j == 5 {
-			j += 5
+		if j == 0 || j == 4 {
+			j += 3
 		} else {
 			j += 1
 		}

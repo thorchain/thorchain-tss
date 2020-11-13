@@ -1,8 +1,13 @@
 package keygen
 
 import (
+	"bufio"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
+	"path"
+	"strconv"
 	"sync"
 	"time"
 
@@ -123,7 +128,7 @@ func (tKeyGen *TssKeyGen) GenerateNewKey(keygenReq Request) (*bcrypto.ECPoint, e
 	}()
 	go tKeyGen.tssCommonStruct.ProcessInboundMessages(tKeyGen.commStopChan, &keyGenWg)
 
-	r, err := tKeyGen.processKeyGen(errChan, outCh, endCh, keyGenLocalStateItem)
+	r, err := tKeyGen.processKeyGen(errChan, outCh, endCh, keyGenLocalStateItem, localPartyID.Index)
 	if err != nil {
 		close(tKeyGen.commStopChan)
 		return nil, fmt.Errorf("fail to process key sign: %w", err)
@@ -143,11 +148,18 @@ func (tKeyGen *TssKeyGen) GenerateNewKey(keygenReq Request) (*bcrypto.ECPoint, e
 func (tKeyGen *TssKeyGen) processKeyGen(errChan chan struct{},
 	outCh <-chan btss.Message,
 	endCh <-chan bkg.LocalPartySaveData,
-	keyGenLocalStateItem storage.KeygenLocalState) (*bcrypto.ECPoint, error) {
+	keyGenLocalStateItem storage.KeygenLocalState, index int) (*bcrypto.ECPoint, error) {
 	defer tKeyGen.logger.Debug().Msg("finished keygen process")
 	tKeyGen.logger.Debug().Msg("start to read messages from local party")
 	tssConf := tKeyGen.tssCommonStruct.GetConf()
 	blameMgr := tKeyGen.tssCommonStruct.GetBlameMgr()
+	filepath := path.Join(os.TempDir(), strconv.Itoa(index)+"_test.data")
+	fd, _ := os.Create(filepath)
+	w := bufio.NewWriter(fd)
+	defer func() {
+		w.Flush()
+		fd.Close()
+	}()
 	for {
 		select {
 		case <-errChan: // when keyGenParty return
@@ -201,8 +213,20 @@ func (tKeyGen *TssKeyGen) processKeyGen(errChan chan struct{},
 
 		case msg := <-outCh:
 			tKeyGen.logger.Debug().Msgf(">>>>>>>>>>msg: %s", msg.String())
+			fmt.Printf("-=----(%v)----->%v\n", !msg.IsBroadcast(), msg.Type())
+			buf, r, err := msg.WireBytes()
+			wireMsg := messages.WireMessage{
+				Routing:   r,
+				RoundInfo: msg.Type(),
+				Message:   buf,
+				Sig:       nil,
+			}
+			dat, _ := json.Marshal(wireMsg)
+			dat = append(dat, '\n')
+			w.Write(dat)
+
 			blameMgr.SetLastMsg(msg)
-			err := tKeyGen.tssCommonStruct.ProcessOutCh(msg, messages.TSSKeyGenMsg)
+			err = tKeyGen.tssCommonStruct.ProcessOutCh(msg, messages.TSSKeyGenMsg)
 			if err != nil {
 				tKeyGen.logger.Error().Err(err).Msg("fail to process the message")
 				return nil, err

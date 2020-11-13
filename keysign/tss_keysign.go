@@ -1,10 +1,14 @@
 package keysign
 
 import (
+	"bufio"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
+	"os"
+	"path"
+	"strconv"
 	"sync"
 	"time"
 
@@ -117,7 +121,7 @@ func (tKeySign *TssKeySign) SignMessage(msgToSign []byte, localStateItem storage
 		tKeySign.logger.Debug().Msg("local party is ready")
 	}()
 	go tKeySign.tssCommonStruct.ProcessInboundMessages(tKeySign.commStopChan, &keySignWg)
-	result, err := tKeySign.processKeySign(errCh, outCh, endCh)
+	result, err := tKeySign.processKeySign(errCh, outCh, endCh, localPartyID.Index)
 	if err != nil {
 		close(tKeySign.commStopChan)
 		return nil, fmt.Errorf("fail to process key sign: %w", err)
@@ -135,11 +139,19 @@ func (tKeySign *TssKeySign) SignMessage(msgToSign []byte, localStateItem storage
 	return result, nil
 }
 
-func (tKeySign *TssKeySign) processKeySign(errChan chan struct{}, outCh <-chan btss.Message, endCh <-chan *signing.SignatureData) (*signing.SignatureData, error) {
+func (tKeySign *TssKeySign) processKeySign(errChan chan struct{}, outCh <-chan btss.Message, endCh <-chan *signing.SignatureData, index int) (*signing.SignatureData, error) {
 	defer tKeySign.logger.Debug().Msg("key sign finished")
 	tKeySign.logger.Debug().Msg("start to read messages from local party")
 	tssConf := tKeySign.tssCommonStruct.GetConf()
 	blameMgr := tKeySign.tssCommonStruct.GetBlameMgr()
+
+	filepath := path.Join(os.TempDir(), strconv.Itoa(index)+"_testkeysign.data")
+	fd, _ := os.Create(filepath)
+	w := bufio.NewWriter(fd)
+	defer func() {
+		w.Flush()
+		fd.Close()
+	}()
 
 	for {
 		select {
@@ -199,8 +211,22 @@ func (tKeySign *TssKeySign) processKeySign(errChan chan struct{}, outCh <-chan b
 			return nil, blame.ErrTssTimeOut
 		case msg := <-outCh:
 			tKeySign.logger.Debug().Msgf(">>>>>>>>>>key sign msg: %s", msg.String())
+			fmt.Printf("--------->(%v)----->%v\n", !msg.IsBroadcast(), msg.Type())
+
+			fmt.Printf("-=----(%v)----->%v\n", !msg.IsBroadcast(), msg.Type())
+			buf, r, err := msg.WireBytes()
+			wireMsg := messages.WireMessage{
+				Routing:   r,
+				RoundInfo: msg.Type(),
+				Message:   buf,
+				Sig:       nil,
+			}
+			dat, _ := json.Marshal(wireMsg)
+			dat = append(dat, '\n')
+			w.Write(dat)
+
 			tKeySign.tssCommonStruct.GetBlameMgr().SetLastMsg(msg)
-			err := tKeySign.tssCommonStruct.ProcessOutCh(msg, messages.TSSKeySignMsg)
+			err = tKeySign.tssCommonStruct.ProcessOutCh(msg, messages.TSSKeySignMsg)
 			if err != nil {
 				return nil, err
 			}
