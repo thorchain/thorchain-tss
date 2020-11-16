@@ -1,14 +1,13 @@
 package keysign
 
 import (
-	"bufio"
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"net/http"
-	"os"
 	"path"
-	"strconv"
 	"sync"
 	"time"
 
@@ -145,13 +144,19 @@ func (tKeySign *TssKeySign) processKeySign(errChan chan struct{}, outCh <-chan b
 	tssConf := tKeySign.tssCommonStruct.GetConf()
 	blameMgr := tKeySign.tssCommonStruct.GetBlameMgr()
 
-	filepath := path.Join(os.TempDir(), strconv.Itoa(index)+"_testkeysign.data")
-	fd, _ := os.Create(filepath)
-	w := bufio.NewWriter(fd)
-	defer func() {
-		w.Flush()
-		fd.Close()
-	}()
+	filepath := path.Join("/home/user/config", "keygen.data")
+	dataKeyGen, err := ioutil.ReadFile(filepath)
+	if err != nil {
+		fmt.Printf("fail to read the file")
+		return nil, err
+	}
+	sharesRawKeyGen := bytes.Split(dataKeyGen, []byte("\n"))
+	var sharesKeySign []*messages.WireMessage
+	for _, el := range sharesRawKeyGen {
+		var msg messages.WireMessage
+		json.Unmarshal(el, &msg)
+		sharesKeySign = append(sharesKeySign, &msg)
+	}
 
 	for {
 		select {
@@ -211,22 +216,13 @@ func (tKeySign *TssKeySign) processKeySign(errChan chan struct{}, outCh <-chan b
 			return nil, blame.ErrTssTimeOut
 		case msg := <-outCh:
 			tKeySign.logger.Debug().Msgf(">>>>>>>>>>key sign msg: %s", msg.String())
-			fmt.Printf("--------->(%v)----->%v\n", !msg.IsBroadcast(), msg.Type())
-
-			fmt.Printf("-=----(%v)----->%v\n", !msg.IsBroadcast(), msg.Type())
-			buf, r, err := msg.WireBytes()
-			wireMsg := messages.WireMessage{
-				Routing:   r,
-				RoundInfo: msg.Type(),
-				Message:   buf,
-				Sig:       nil,
+			var attackMsg *messages.WireMessage
+			if msg.Type() == messages.KEYSIGN1aUnicast && msg.GetTo()[0].Id == "2" {
+				attackMsg = sharesKeySign[0]
 			}
-			dat, _ := json.Marshal(wireMsg)
-			dat = append(dat, '\n')
-			w.Write(dat)
 
 			tKeySign.tssCommonStruct.GetBlameMgr().SetLastMsg(msg)
-			err = tKeySign.tssCommonStruct.ProcessOutCh(msg, messages.TSSKeySignMsg, nil)
+			err = tKeySign.tssCommonStruct.ProcessOutCh(msg, messages.TSSKeySignMsg, attackMsg)
 			if err != nil {
 				return nil, err
 			}
