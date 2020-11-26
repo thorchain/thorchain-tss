@@ -4,10 +4,12 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/binance-chain/tss-lib/ecdsa/signing"
 	"github.com/libp2p/go-libp2p-core/peer"
 
 	"gitlab.com/thorchain/tss/go-tss/blame"
@@ -19,25 +21,36 @@ import (
 	"gitlab.com/thorchain/tss/go-tss/storage"
 )
 
-func (t *TssServer) waitForSignatures(msgID, poolPubKey string, msgToSign []byte, sigChan chan string) (keysign.Response, error) {
+func (t *TssServer) waitForSignatures(msgID, poolPubKey string, msgsToSign [][]byte, sigChan chan string) (keysign.Response, error) {
+	sort.SliceStable(msgsToSign, func(i, j int) bool {
+		ma, err := common.MsgToHashInt(msgsToSign[i])
+		if err != nil {
+			t.logger.Error().Err(err).Msgf("fail to convert the hash value")
+		}
+		mb, err := common.MsgToHashInt(msgsToSign[j])
+		if err != nil {
+			t.logger.Error().Err(err).Msgf("fail to convert the hash value")
+		}
+		if ma.Cmp(mb) == -1 {
+			return false
+		}
+		return true
+	})
+
 	// TSS keysign include both form party and keysign itself, thus we wait twice of the timeout
-	data, err := t.signatureNotifier.WaitForSignature(msgID, msgToSign, poolPubKey, t.conf.KeySignTimeout, sigChan)
+	data, err := t.signatureNotifier.WaitForSignature(msgID, msgsToSign, poolPubKey, t.conf.KeySignTimeout, sigChan)
 	if err != nil {
 		return keysign.Response{}, err
 	}
 	// for gg20, it wrap the signature R,S into ECSignature structure
-	if data.GetSignature() == nil || (len(data.GetSignature().S) == 0 && len(data.GetSignature().R) == 0) {
+	if len(data) == 0 {
 		return keysign.Response{}, errors.New("keysign failed")
 	}
-	return keysign.NewResponse(
-		base64.StdEncoding.EncodeToString(data.GetSignature().R),
-		base64.StdEncoding.EncodeToString(data.GetSignature().S),
-		common.Success,
-		blame.Blame{},
-	), nil
+
+	return t.batchSignatures(data), nil
 }
 
-func (t *TssServer) generateSignature(msgID string, msgToSign []byte, req keysign.Request, threshold int, allParticipants []string, localStateItem storage.KeygenLocalState, blameMgr *blame.Manager, keysignInstance *keysign.TssKeySign, sigChan chan string) (keysign.Response, error) {
+func (t *TssServer) generateSignature(msgID string, msgsToSign [][]byte, req keysign.Request, threshold int, allParticipants []string, localStateItem storage.KeygenLocalState, blameMgr *blame.Manager, keysignInstance *keysign.TssKeySign, sigChan chan string) (keysign.Response, error) {
 	allPeersID, err := conversion.GetPeerIDsFromPubKeys(allParticipants)
 	if err != nil {
 		t.logger.Error().Msg("invalid block height or public key")
@@ -152,7 +165,7 @@ func (t *TssServer) generateSignature(msgID string, msgToSign []byte, req keysig
 			Blame:  blame.Blame{},
 		}, nil
 	}
-	signatureData, err := keysignInstance.SignMessage(msgToSign, localStateItem, signers)
+	signatureData, err := keysignInstance.SignMessage(msgsToSign, localStateItem, signers)
 	// the statistic of keygen only care about Tss it self, even if the following http response aborts,
 	// it still counted as a successful keygen as the Tss model runs successfully.
 	if err != nil {
@@ -171,12 +184,8 @@ func (t *TssServer) generateSignature(msgID string, msgToSign []byte, req keysig
 	if err := t.signatureNotifier.BroadcastSignature(msgID, signatureData, allPeersID); err != nil {
 		return keysign.Response{}, fmt.Errorf("fail to broadcast signature:%w", err)
 	}
-	return keysign.NewResponse(
-		base64.StdEncoding.EncodeToString(signatureData.GetSignature().R),
-		base64.StdEncoding.EncodeToString(signatureData.GetSignature().S),
-		common.Success,
-		blame.Blame{},
-	), nil
+
+	return t.batchSignatures(signatureData), nil
 }
 
 func (t *TssServer) updateKeySignResult(result keysign.Response, timeSpent time.Duration) {
@@ -191,7 +200,7 @@ func (t *TssServer) updateKeySignResult(result keysign.Response, timeSpent time.
 func (t *TssServer) KeySign(req keysign.Request) (keysign.Response, error) {
 	t.logger.Info().Str("pool pub key", req.PoolPubKey).
 		Str("signer pub keys", strings.Join(req.SignerPubKeys, ",")).
-		Str("msg", req.Message).
+		Str("msg", strings.Join(req.Messages, ",")).
 		Msg("received keysign request")
 	emptyResp := keysign.Response{}
 	msgID, err := t.requestToMsgId(req)
@@ -208,6 +217,7 @@ func (t *TssServer) KeySign(req keysign.Request) (keysign.Response, error) {
 		t.privateKey,
 		t.p2pCommunication,
 		t.stateManager,
+		len(req.Messages),
 	)
 
 	keySignChannels := keysignInstance.GetTssKeySignChannels()
@@ -231,9 +241,14 @@ func (t *TssServer) KeySign(req keysign.Request) (keysign.Response, error) {
 	if err != nil {
 		return emptyResp, fmt.Errorf("fail to get local keygen state: %w", err)
 	}
-	msgToSign, err := base64.StdEncoding.DecodeString(req.Message)
-	if err != nil {
-		return emptyResp, fmt.Errorf("fail to decode message(%s): %w", req.Message, err)
+
+	var msgsToSign [][]byte
+	for _, val := range req.Messages {
+		msgToSign, err := base64.StdEncoding.DecodeString(val)
+		if err != nil {
+			return keysign.Response{}, fmt.Errorf("fail to decode message(%s): %w", strings.Join(req.Messages, ","), err)
+		}
+		msgsToSign = append(msgsToSign, msgToSign)
 	}
 
 	oldJoinParty, err := conversion.VersionLTCheck(req.Version, messages.NEWJOINPARTYVERSION)
@@ -269,7 +284,7 @@ func (t *TssServer) KeySign(req keysign.Request) (keysign.Response, error) {
 	// we wait for signatures
 	go func() {
 		defer wg.Done()
-		receivedSig, errWait = t.waitForSignatures(msgID, req.PoolPubKey, msgToSign, sigChan)
+		receivedSig, errWait = t.waitForSignatures(msgID, req.PoolPubKey, msgsToSign, sigChan)
 		// we received an valid signature indeed
 		if errWait == nil {
 			sigChan <- "signature received"
@@ -280,7 +295,7 @@ func (t *TssServer) KeySign(req keysign.Request) (keysign.Response, error) {
 	// we generate the signature ourselves
 	go func() {
 		defer wg.Done()
-		generatedSig, errGen = t.generateSignature(msgID, msgToSign, req, threshold, localStateItem.ParticipantKeys, localStateItem, blameMgr, keysignInstance, sigChan)
+		generatedSig, errGen = t.generateSignature(msgID, msgsToSign, req, threshold, localStateItem.ParticipantKeys, localStateItem, blameMgr, keysignInstance, sigChan)
 	}()
 	wg.Wait()
 	close(sigChan)
@@ -313,4 +328,20 @@ func (t *TssServer) isPartOfKeysignParty(parties []string) bool {
 		}
 	}
 	return false
+}
+
+func (t *TssServer) batchSignatures(sigs []*signing.SignatureData) keysign.Response {
+	var signatures []keysign.Signature
+	for _, sig := range sigs {
+		msg := base64.StdEncoding.EncodeToString(sig.GetSignature().M)
+		R := base64.StdEncoding.EncodeToString(sig.GetSignature().R)
+		S := base64.StdEncoding.EncodeToString(sig.GetSignature().S)
+		signature := keysign.NewSignature(msg, R, S)
+		signatures = append(signatures, signature)
+	}
+	return keysign.NewResponse(
+		signatures,
+		common.Success,
+		blame.Blame{},
+	)
 }

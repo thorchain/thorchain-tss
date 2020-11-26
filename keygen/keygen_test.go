@@ -285,7 +285,7 @@ func (s *TssKeygenTestSuite) TestKeyGenWithError(c *C) {
 	c.Assert(generatedKey, IsNil)
 }
 
-func (s *TssKeygenTestSuite) TestCloseKeyGennotifyChannel(c *C) {
+func (s *TssKeygenTestSuite) TestCloseKeyGenNotifyChannel(c *C) {
 	conf := common.TssConfig{}
 	stateManager := &storage.MockLocalStateManager{}
 	keyGenInstance := NewTssKeyGen("", conf, "", nil, nil, nil, "test", stateManager, s.nodePrivKeys[0], s.comms[0])
@@ -303,7 +303,7 @@ func (s *TssKeygenTestSuite) TestCloseKeyGennotifyChannel(c *C) {
 	partyIdMap["1"] = nil
 	partyIdMap["2"] = nil
 	fakePartyInfo := &common.PartyInfo{
-		Party:      nil,
+		PartyMap:   nil,
 		PartyIDMap: partyIdMap,
 	}
 	keyGenInstance.tssCommonStruct.SetPartyInfo(fakePartyInfo)

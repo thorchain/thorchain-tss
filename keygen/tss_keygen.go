@@ -49,7 +49,7 @@ func NewTssKeyGen(localP2PID string,
 			Str("msgID", msgID).Logger(),
 		localNodePubKey: localNodePubKey,
 		preParams:       preParam,
-		tssCommonStruct: common.NewTssCommon(localP2PID, broadcastChan, conf, msgID, privateKey),
+		tssCommonStruct: common.NewTssCommon(localP2PID, broadcastChan, conf, msgID, privateKey, 1),
 		stopChan:        stopChan,
 		localParty:      nil,
 		stateManager:    stateManager,
@@ -81,6 +81,7 @@ func (tKeyGen *TssKeyGen) GenerateNewKey(keygenReq Request) (*bcrypto.ECPoint, e
 	if err != nil {
 		return nil, err
 	}
+	keyGenPartyMap := new(sync.Map)
 	ctx := btss.NewPeerContext(partiesID)
 	params := btss.NewParameters(ctx, localPartyID, len(partiesID), threshold)
 	outCh := make(chan btss.Message, len(partiesID))
@@ -99,14 +100,15 @@ func (tKeyGen *TssKeyGen) GenerateNewKey(keygenReq Request) (*bcrypto.ECPoint, e
 		tKeyGen.logger.Error().Msgf("error in creating mapping between partyID and P2P ID")
 		return nil, err
 	}
-
+	// we never run multi keygen, so the moniker is set to default empty value
+	keyGenPartyMap.Store("", keyGenParty)
 	partyInfo := &common.PartyInfo{
-		Party:      keyGenParty,
+		PartyMap:   keyGenPartyMap,
 		PartyIDMap: partyIDMap,
 	}
 
 	tKeyGen.tssCommonStruct.SetPartyInfo(partyInfo)
-	blameMgr.SetPartyInfo(keyGenParty, partyIDMap)
+	blameMgr.SetPartyInfo(keyGenPartyMap, partyIDMap)
 	tKeyGen.tssCommonStruct.P2PPeers = conversion.GetPeersID(tKeyGen.tssCommonStruct.PartyIDtoP2PID, tKeyGen.tssCommonStruct.GetLocalPeerID())
 	var keyGenWg sync.WaitGroup
 	keyGenWg.Add(2)

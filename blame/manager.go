@@ -20,6 +20,7 @@ type Manager struct {
 	lastMsgLocker   *sync.RWMutex
 	lastMsg         btss.Message
 	acceptedShares  *sync.Map
+	localPartyID    string
 }
 
 func NewBlameManager() *Manager {
@@ -64,12 +65,18 @@ func (m *Manager) GetLastMsg() btss.Message {
 	return m.lastMsg
 }
 
-func (m *Manager) SetPartyInfo(party btss.Party, partyIDMap map[string]*btss.PartyID) {
+func (m *Manager) SetPartyInfo(partyMap *sync.Map, partyIDMap map[string]*btss.PartyID) {
 	partyInfo := &PartyInfo{
-		Party:      party,
+		PartyMap:   partyMap,
 		PartyIDMap: partyIDMap,
 	}
 	m.partyInfo = partyInfo
+	var localParty btss.Party
+	m.partyInfo.PartyMap.Range(func(key, value interface{}) bool {
+		localParty = value.(btss.Party)
+		return false
+	})
+	m.localPartyID = localParty.PartyID().Id
 }
 
 func (m *Manager) SetLastUnicastPeer(peerID peer.ID, roundInfo string) {

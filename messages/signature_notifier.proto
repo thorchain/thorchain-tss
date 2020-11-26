@@ -1,7 +1,7 @@
 syntax = "proto3";
 
 option go_package = "gitlab.com/thorchain/tss/go-tss/messages";
-
+import "google/protobuf/timestamp.proto";
 package messages;
 
 message KeysignSignature {
@@ -11,6 +11,6 @@ message KeysignSignature {
         Failed = 2;
     }
     string ID = 1; // the unique message id
-    bytes Signature = 2;
+    repeated bytes Signatures= 2;
     Status KeysignStatus = 3;
 }

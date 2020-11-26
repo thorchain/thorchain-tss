@@ -15,7 +15,7 @@ import (
 func (m *Manager) tssTimeoutBlame(lastMessageType string, partyIDMap map[string]*btss.PartyID) ([]string, error) {
 	peersSet := mapset.NewSet()
 	for _, el := range partyIDMap {
-		if el.Id != m.partyInfo.Party.PartyID().Id {
+		if el.Id != m.localPartyID {
 			peersSet.Add(el.Id)
 		}
 	}
@@ -134,8 +134,7 @@ func (m *Manager) TssMissingShareBlame(rounds int) ([]Node, bool, error) {
 	m.acceptedShares.Range(func(key, value interface{}) bool {
 		data := value.([]string)
 		roundInfo := key.(RoundInfo)
-		index := roundInfo.Index
-		cachedShares[index] = data
+		cachedShares[roundInfo.Index] = data
 		return true
 	})
 	var peers []string
@@ -162,7 +161,9 @@ func (m *Manager) TssMissingShareBlame(rounds int) ([]Node, bool, error) {
 			}
 		}
 		// we add our own id to avoid blame ourselves
-		el = append(el, m.partyInfo.Party.PartyID().Id)
+		// since all the local parties have the same id, so we just need to take one of them to get the peer
+
+		el = append(el, m.localPartyID)
 		for _, pid := range el {
 			peers = append(peers, m.PartyIDtoP2PID[pid].String())
 		}
