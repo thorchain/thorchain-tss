@@ -2,6 +2,7 @@ package blame
 
 import (
 	"sort"
+	"sync"
 	"testing"
 
 	bkg "github.com/binance-chain/tss-lib/ecdsa/keygen"
@@ -56,7 +57,10 @@ func (p *policyTestSuite) SetUpTest(c *C) {
 	ctx := btss.NewPeerContext(partiesID)
 	params := btss.NewParameters(ctx, localPartyID, len(partiesID), 3)
 	keyGenParty := bkg.NewLocalParty(params, outCh, endCh)
-	p.blameMgr.SetPartyInfo(keyGenParty, partyIDMap)
+
+	testPartyMap := new(sync.Map)
+	testPartyMap.Store("", keyGenParty)
+	p.blameMgr.SetPartyInfo(testPartyMap, partyIDMap)
 }
 
 func (p *policyTestSuite) TestGetUnicastBlame(c *C) {
@@ -121,13 +125,13 @@ func (p *policyTestSuite) TestTssMissingShareBlame(c *C) {
 	blameMgr := p.blameMgr
 	acceptedShares := blameMgr.GetAcceptShares()
 	// we only allow a message be updated only once.
-	acceptedShares.Store(RoundInfo{0, "testRound"}, []string{"1", "2"})
-	acceptedShares.Store(RoundInfo{1, "testRound"}, []string{"1"})
+	acceptedShares[RoundInfo{0, "testRound", "123:0"}] = []string{"1", "2"}
+	acceptedShares[RoundInfo{1, "testRound", "123:0"}] = []string{"1"}
 	nodes, _, err := blameMgr.TssMissingShareBlame(2)
 	c.Assert(err, IsNil)
 	c.Assert(nodes[0].Pubkey, Equals, localTestPubKeys[3])
 	// we test if the missing share happens in round2
-	acceptedShares.Store(RoundInfo{0, "testRound"}, []string{"1", "2", "3"})
+	acceptedShares[RoundInfo{0, "testRound", "123:0"}] = []string{"1", "2", "3"}
 	nodes, _, err = blameMgr.TssMissingShareBlame(2)
 	c.Assert(err, IsNil)
 	results := []string{nodes[0].Pubkey, nodes[1].Pubkey}

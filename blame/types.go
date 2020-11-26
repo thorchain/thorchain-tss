@@ -2,6 +2,7 @@ package blame
 
 import (
 	"errors"
+	"sync"
 
 	btss "github.com/binance-chain/tss-lib/tss"
 )
@@ -25,7 +26,7 @@ var (
 
 // PartyInfo the information used by tss key gen and key sign
 type PartyInfo struct {
-	Party      btss.Party
+	PartyMap   *sync.Map
 	PartyIDMap map[string]*btss.PartyID
 }
 

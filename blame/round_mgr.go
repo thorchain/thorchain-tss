@@ -7,8 +7,9 @@ import (
 )
 
 type RoundInfo struct {
-	Index    int
-	RoundMsg string
+	Index         int
+	RoundMsg      string
+	MsgIdentifier string
 }
 
 type RoundMgr struct {

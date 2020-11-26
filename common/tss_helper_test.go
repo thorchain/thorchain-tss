@@ -67,7 +67,7 @@ func (t *tssHelpSuite) TestTssCommon_NotifyTaskDone(c *C) {
 	peerID, err := conversion.GetPeerIDFromSecp256PubKey(pk.Bytes())
 	c.Assert(err, IsNil)
 	sk := secp256k1.GenPrivKey()
-	tssCommon := NewTssCommon(peerID.String(), nil, TssConfig{}, "message-id", sk)
+	tssCommon := NewTssCommon(peerID.String(), nil, TssConfig{}, "message-id", sk, 1)
 	err = tssCommon.NotifyTaskDone()
 	c.Assert(err, IsNil)
 }
@@ -80,7 +80,7 @@ func (t *tssHelpSuite) TestTssCommon_processRequestMsgFromPeer(c *C) {
 	sk := secp256k1.GenPrivKey()
 	testPeer, err := peer.Decode("16Uiu2HAm2FzqoUdS6Y9Esg2EaGcAG5rVe1r6BFNnmmQr2H3bqafa")
 	c.Assert(err, IsNil)
-	tssCommon := NewTssCommon(peerID.String(), nil, TssConfig{}, "message-id", sk)
+	tssCommon := NewTssCommon(peerID.String(), nil, TssConfig{}, "message-id", sk, 1)
 	err = tssCommon.processRequestMsgFromPeer([]peer.ID{testPeer}, nil, true)
 	c.Assert(err, IsNil)
 	err = tssCommon.processRequestMsgFromPeer([]peer.ID{testPeer}, nil, false)
@@ -140,7 +140,7 @@ func (t *tssHelpSuite) TestGetMsgRound(c *C) {
 	mockParty := btss.NewPartyID("12", "22", big.NewInt(2))
 	j := 0
 	for i := 0; i < len(messagesKeygen); i++ {
-		ret, err := GetMsgRound(sharesKeyGen[j], mockParty)
+		ret, err := GetMsgRound(sharesKeyGen[j].Message, mockParty, sharesKeyGen[j].Routing.IsBroadcast)
 		c.Assert(err, IsNil)
 		expectedRound := blame.RoundInfo{
 			Index:    i,
@@ -156,7 +156,7 @@ func (t *tssHelpSuite) TestGetMsgRound(c *C) {
 	}
 	j = 0
 	for i := 0; i < len(messagesKeysign); i++ {
-		ret, err := GetMsgRound(sharesKeySign[j], mockParty)
+		ret, err := GetMsgRound(sharesKeySign[j].Message, mockParty, sharesKeySign[1].Routing.IsBroadcast)
 		c.Assert(err, IsNil)
 		expectedRound := blame.RoundInfo{
 			Index:    i,
@@ -171,7 +171,7 @@ func (t *tssHelpSuite) TestGetMsgRound(c *C) {
 		}
 	}
 
-	ret, err := GetMsgRound(sharesKeyGen[1], mockParty)
+	ret, err := GetMsgRound(sharesKeyGen[1].Message, mockParty, sharesKeyGen[1].Routing.IsBroadcast)
 	c.Assert(ret, Equals, blame.RoundInfo{Index: 1, RoundMsg: messages.KEYGEN2aUnicast})
 	c.Assert(err, IsNil)
 }

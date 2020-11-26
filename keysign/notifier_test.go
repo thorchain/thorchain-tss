@@ -21,19 +21,20 @@ func (*NotifierTestSuite) SetUpSuite(c *C) {
 }
 
 func (NotifierTestSuite) TestNewNotifier(c *C) {
+	testMSg := [][]byte{[]byte("hello"), []byte("world")}
 	poolPubKey := conversion.GetRandomPubKey()
-	n, err := NewNotifier("", []byte("hello"), poolPubKey)
+	n, err := NewNotifier("", testMSg, poolPubKey)
 	c.Assert(err, NotNil)
 	c.Assert(n, IsNil)
 	n, err = NewNotifier("aasfdasdf", nil, poolPubKey)
 	c.Assert(err, NotNil)
 	c.Assert(n, IsNil)
 
-	n, err = NewNotifier("hello", []byte("hello"), "")
+	n, err = NewNotifier("hello", testMSg, "")
 	c.Assert(err, NotNil)
 	c.Assert(n, IsNil)
 
-	n, err = NewNotifier("hello", []byte("hello"), poolPubKey)
+	n, err = NewNotifier("hello", testMSg, poolPubKey)
 	c.Assert(err, IsNil)
 	c.Assert(n, NotNil)
 	ch := n.GetResponseChannel()

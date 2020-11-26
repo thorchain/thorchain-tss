@@ -19,7 +19,8 @@ type Manager struct {
 	PartyIDtoP2PID  map[string]peer.ID
 	lastMsgLocker   *sync.RWMutex
 	lastMsg         btss.Message
-	acceptedShares  *sync.Map
+	acceptedShares  map[RoundInfo][]string
+	localPartyID    string
 }
 
 func NewBlameManager() *Manager {
@@ -32,7 +33,7 @@ func NewBlameManager() *Manager {
 		roundMgr:        NewTssRoundMgr(),
 		blame:           &Blame{},
 		lastMsgLocker:   &sync.RWMutex{},
-		acceptedShares:  &sync.Map{},
+		acceptedShares:  make(map[RoundInfo][]string),
 	}
 }
 
@@ -48,7 +49,7 @@ func (m *Manager) GetRoundMgr() *RoundMgr {
 	return m.roundMgr
 }
 
-func (m *Manager) GetAcceptShares() *sync.Map {
+func (m *Manager) GetAcceptShares() map[RoundInfo][]string {
 	return m.acceptedShares
 }
 
@@ -64,12 +65,18 @@ func (m *Manager) GetLastMsg() btss.Message {
 	return m.lastMsg
 }
 
-func (m *Manager) SetPartyInfo(party btss.Party, partyIDMap map[string]*btss.PartyID) {
+func (m *Manager) SetPartyInfo(partyMap *sync.Map, partyIDMap map[string]*btss.PartyID) {
 	partyInfo := &PartyInfo{
-		Party:      party,
+		PartyMap:   partyMap,
 		PartyIDMap: partyIDMap,
 	}
 	m.partyInfo = partyInfo
+	var localParty btss.Party
+	m.partyInfo.PartyMap.Range(func(key, value interface{}) bool {
+		localParty = value.(btss.Party)
+		return false
+	})
+	m.localPartyID = localParty.PartyID().Id
 }
 
 func (m *Manager) SetLastUnicastPeer(peerID peer.ID, roundInfo string) {

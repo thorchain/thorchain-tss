@@ -33,6 +33,7 @@ require (
 	github.com/tendermint/btcd v0.1.1
 	github.com/tendermint/tendermint v0.34.3
 	gitlab.com/thorchain/binance-sdk v1.2.3-0.20210102180356-7b2f8924ed23
+	go.uber.org/atomic v1.6.0
 	golang.org/x/crypto v0.0.0-20201221181555-eec23a3978ad
 	golang.org/x/text v0.3.3
 	google.golang.org/protobuf v1.25.0

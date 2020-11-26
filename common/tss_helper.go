@@ -135,8 +135,8 @@ func checkUnicast(round blame.RoundInfo) bool {
 	return false
 }
 
-func GetMsgRound(wireMsg *messages.WireMessage, partyID *btss.PartyID) (blame.RoundInfo, error) {
-	parsedMsg, err := btss.ParseWireMessage(wireMsg.Message, partyID, wireMsg.Routing.IsBroadcast)
+func GetMsgRound(msg []byte, partyID *btss.PartyID, isBroadcast bool) (blame.RoundInfo, error) {
+	parsedMsg, err := btss.ParseWireMessage(msg, partyID, isBroadcast)
 	if err != nil {
 		return blame.RoundInfo{}, err
 	}

@@ -1,10 +1,10 @@
 package tss
 
 import (
-	"encoding/base64"
 	"errors"
 	"fmt"
 	"sort"
+	"strings"
 	"sync"
 
 	bkeygen "github.com/binance-chain/tss-lib/ecdsa/keygen"
@@ -150,13 +150,9 @@ func (t *TssServer) requestToMsgId(request interface{}) (string, error) {
 	case keygen.Request:
 		keys = value.Keys
 	case keysign.Request:
-		msgToSign, err := base64.StdEncoding.DecodeString(value.Message)
-		if err != nil {
-			t.logger.Error().Err(err).Msg("error in decode the keysign req")
-			return "", err
-		}
+		sort.Strings(value.Messages)
+		dat = []byte(strings.Join(value.Messages, ","))
 		keys = value.SignerPubKeys
-		dat = msgToSign
 	default:
 		t.logger.Error().Msg("unknown request type")
 		return "", errors.New("unknown request type")
