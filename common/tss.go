@@ -201,16 +201,14 @@ func (t *TssCommon) updateLocal(wireMsg *messages.WireMessage) error {
 		return false
 	}
 
-	var BulkMsg []BulkWireMsg
-	err := json.Unmarshal(wireMsg.Message, &BulkMsg)
+	var bulkMsg []BulkWireMsg
+	err := json.Unmarshal(wireMsg.Message, &bulkMsg)
 	if err != nil {
 		t.logger.Error().Err(err).Msg("error to unmarshal the BulkMsg")
 		return err
 	}
 
-	for _, eachWiredMsg := range BulkMsg {
-
-		// localMsgParty, ok := partyInfo.PartyMap[eachWiredMsg.MsgIdentifier]
+	for _, eachWiredMsg := range bulkMsg {
 		data, ok := partyInfo.PartyMap.Load(eachWiredMsg.MsgIdentifier)
 		if !ok {
 			t.logger.Error().Msg("cannot find the party to this wired msg")
@@ -250,7 +248,6 @@ func (t *TssCommon) updateLocal(wireMsg *messages.WireMessage) error {
 
 		}
 
-		fmt.Printf("---->%v with round %v\n", eachWiredMsg.MsgIdentifier, round.RoundMsg)
 		_, errUp := localMsgParty.UpdateFromBytes(eachWiredMsg.WiredBulkMsgs, partyID, eachWiredMsg.Routing.IsBroadcast)
 		if errUp != nil {
 			return t.processInvalidMsgBlame(wireMsg, round, errUp)
@@ -258,7 +255,7 @@ func (t *TssCommon) updateLocal(wireMsg *messages.WireMessage) error {
 		if !ok {
 			partyList := []string{partyID.Id}
 			acceptedShares.Store(round, partyList)
-			return nil
+			continue
 		}
 		partyList := dat.([]string)
 		partyList = append(partyList, partyID.Id)
@@ -483,21 +480,17 @@ func (t *TssCommon) ProcessOutCh(msg btss.Message, msgType messages.THORChainTSS
 			t.cachedWireUnicastMsgLists.Store(msg.Type()+":"+r.To[0].String(), cachedList)
 		}
 	}
-	var broadcastdelete []interface{}
-	var unidelete []interface{}
 	t.cachedWireUnicastMsgLists.Range(func(key, value interface{}) bool {
 		wiredMsgList := value.([]BulkWireMsg)
 		ret := strings.Split(key.(string), ":")
 		wiredMsgType := ret[0]
-		sendMsg := wiredMsgList
 		if len(wiredMsgList) == t.msgNum {
-			err := t.sendBulkMsg(wiredMsgType, msgType, sendMsg)
+			err := t.sendBulkMsg(wiredMsgType, msgType, wiredMsgList)
 			if err != nil {
 				t.logger.Error().Err(err).Msg("error in send bulk message")
 				return true
 			}
-			fmt.Printf("#############>>>>>%v\n", key)
-			unidelete = append(unidelete, key)
+			t.cachedWireUnicastMsgLists.Delete(key)
 		}
 		return true
 	})
@@ -505,25 +498,16 @@ func (t *TssCommon) ProcessOutCh(msg btss.Message, msgType messages.THORChainTSS
 	t.cachedWireBroadcastMsgLists.Range(func(key, value interface{}) bool {
 		wiredMsgList := value.([]BulkWireMsg)
 		wiredMsgType := key.(string)
-		sendMsg := wiredMsgList
 		if len(wiredMsgList) == t.msgNum {
-			err := t.sendBulkMsg(wiredMsgType, msgType, sendMsg)
+			err := t.sendBulkMsg(wiredMsgType, msgType, wiredMsgList)
 			if err != nil {
 				t.logger.Error().Err(err).Msg("error in send bulk message")
 				return true
 			}
-			broadcastdelete = append(broadcastdelete, key)
+			t.cachedWireBroadcastMsgLists.Delete(key)
 		}
 		return true
 	})
-
-	for _, el := range unidelete {
-		fmt.Printf(">>>>>>>>>>>>>>>>>>we delete>>>%v\n", el)
-		// t.cachedWireUnicastMsgLists.Delete(el)
-	}
-	for _, el := range broadcastdelete {
-		t.cachedWireBroadcastMsgLists.Delete(el)
-	}
 
 	return nil
 }
