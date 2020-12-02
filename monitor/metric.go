@@ -29,6 +29,7 @@ func (m *Metric) UpdateKeyGen(keygenTime time.Duration, success bool) {
 
 func (m *Metric) UpdateKeySign(keysignTime time.Duration, success bool) {
 	if success {
+		m.logger.Info().Msgf(">>>>>>>>>>>>>>>>>>>>>>>>>>time:%v\n", keysignTime.Seconds())
 		m.keySignTime.Set(float64(keysignTime))
 		m.keysignCounter.WithLabelValues("success").Inc()
 	} else {
