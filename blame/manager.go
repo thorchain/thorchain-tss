@@ -19,7 +19,7 @@ type Manager struct {
 	PartyIDtoP2PID  map[string]peer.ID
 	lastMsgLocker   *sync.RWMutex
 	lastMsg         btss.Message
-	acceptedShares  *sync.Map
+	acceptedShares  map[RoundInfo][]string
 	localPartyID    string
 }
 
@@ -33,7 +33,7 @@ func NewBlameManager() *Manager {
 		roundMgr:        NewTssRoundMgr(),
 		blame:           &Blame{},
 		lastMsgLocker:   &sync.RWMutex{},
-		acceptedShares:  &sync.Map{},
+		acceptedShares:  make(map[RoundInfo][]string),
 	}
 }
 
@@ -49,7 +49,7 @@ func (m *Manager) GetRoundMgr() *RoundMgr {
 	return m.roundMgr
 }
 
-func (m *Manager) GetAcceptShares() *sync.Map {
+func (m *Manager) GetAcceptShares() map[RoundInfo][]string {
 	return m.acceptedShares
 }
 

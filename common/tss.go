@@ -47,6 +47,7 @@ type TssCommon struct {
 	cachedWireBroadcastMsgLists *sync.Map
 	cachedWireUnicastMsgLists   *sync.Map
 	msgNum                      int
+	updateLock                  *sync.RWMutex
 }
 
 func NewTssCommon(peerID string, broadcastChannel chan *messages.BroadcastMsgChan, conf TssConfig, msgID string, privKey tcrypto.PrivKey, msgNum int) *TssCommon {
@@ -71,6 +72,7 @@ func NewTssCommon(peerID string, broadcastChannel chan *messages.BroadcastMsgCha
 		cachedWireBroadcastMsgLists: &sync.Map{},
 		cachedWireUnicastMsgLists:   &sync.Map{},
 		msgNum:                      msgNum,
+		updateLock:                  &sync.RWMutex{},
 	}
 }
 
@@ -207,60 +209,80 @@ func (t *TssCommon) updateLocal(wireMsg *messages.WireMessage) error {
 		t.logger.Error().Err(err).Msg("error to unmarshal the BulkMsg")
 		return err
 	}
+	acceptedShares := t.blameMgr.GetAcceptShares()
+	var wg sync.WaitGroup
+	for _, msg := range bulkMsg {
 
-	for _, eachWiredMsg := range bulkMsg {
-		data, ok := partyInfo.PartyMap.Load(eachWiredMsg.MsgIdentifier)
+		data, ok := partyInfo.PartyMap.Load(msg.MsgIdentifier)
 		if !ok {
 			t.logger.Error().Msg("cannot find the party to this wired msg")
 			return errors.New("cannot find the party")
 		}
 		localMsgParty := data.(btss.Party)
-		partyID, ok := partyInfo.PartyIDMap[eachWiredMsg.Routing.From.Id]
+		partyID, ok := partyInfo.PartyIDMap[msg.Routing.From.Id]
 		if !ok {
 			t.logger.Error().Msg("error in find the partyID")
 			return errors.New("cannot find the party to handle the message")
 		}
 
-		round, err := GetMsgRound(eachWiredMsg.WiredBulkMsgs, partyID, eachWiredMsg.Routing.IsBroadcast)
+		round, err := GetMsgRound(msg.WiredBulkMsgs, partyID, msg.Routing.IsBroadcast)
 		if err != nil {
 			t.logger.Error().Err(err).Msg("broken tss share")
 			return err
 		}
 
-		acceptedShares := t.blameMgr.GetAcceptShares()
 		// we only allow a message be updated only once.
 		// here we use round + msgIdentifier as the key for the acceptedShares
-		round.MsgIdentifier = eachWiredMsg.MsgIdentifier
-		dat, ok := acceptedShares.Load(round)
+		round.MsgIdentifier = msg.MsgIdentifier
+		t.updateLock.Lock()
+		partyList, ok := acceptedShares[round]
+		duplicated := false
 		if ok {
-			partyList := dat.([]string)
 			for _, el := range partyList {
 				if el == partyID.Id {
 					t.logger.Debug().Msgf("we received the duplicated message from party %s", partyID.Id)
-					continue
+					duplicated = true
+					break
 				}
 			}
+		}
+		t.updateLock.Unlock()
+		// if this share is duplicated, we skip this share
+		if duplicated {
+			continue
 		}
 
 		if len(t.culprits) != 0 && partyInlist(partyID, t.culprits) {
 			t.logger.Error().Msgf("the malicious party (party ID:%s) try to send incorrect message to me (party ID:%s)", partyID.Id, localMsgParty.PartyID().Id)
 			return errors.New(blame.TssBrokenMsg)
-
 		}
 
-		_, errUp := localMsgParty.UpdateFromBytes(eachWiredMsg.WiredBulkMsgs, partyID, eachWiredMsg.Routing.IsBroadcast)
-		if errUp != nil {
-			return t.processInvalidMsgBlame(wireMsg, round, errUp)
-		}
-		if !ok {
-			partyList := []string{partyID.Id}
-			acceptedShares.Store(round, partyList)
-			continue
-		}
-		partyList := dat.([]string)
-		partyList = append(partyList, partyID.Id)
-		acceptedShares.Store(round, partyList)
+		wg.Add(1)
+		go func(party btss.Party, wireBytes []byte, from *btss.PartyID, isBroadcast bool) {
+			defer wg.Done()
+			_, errUp := party.UpdateFromBytes(wireBytes, partyID, msg.Routing.IsBroadcast)
+			if errUp != nil {
+				err := t.processInvalidMsgBlame(wireMsg, round, errUp)
+				t.logger.Error().Err(err).Msgf("fail to apply the share to tss")
+				return
+			}
+			// we need to retrieve the partylist again as others may update it once we process apply tss share
+			t.updateLock.Lock()
+			defer t.updateLock.Unlock()
+			partyList, ok = acceptedShares[round]
+			if !ok {
+				partyList := []string{partyID.Id}
+				acceptedShares[round] = partyList
+				return
+			}
+			partyList = append(partyList, partyID.Id)
+			acceptedShares[round] = partyList
+		}(localMsgParty, msg.WiredBulkMsgs, partyID, msg.Routing.IsBroadcast)
+
 	}
+
+	wg.Wait()
+
 	return nil
 }
 
