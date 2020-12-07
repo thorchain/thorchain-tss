@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"runtime"
 	"strings"
 	"sync"
 
@@ -90,6 +91,66 @@ func NewBulkWireMsg(msg []byte, id string, r *btss.MessageRouting) BulkWireMsg {
 	}
 }
 
+type tssJob struct {
+	wireBytes      []byte
+	partyID        *btss.PartyID
+	isBroadcast    bool
+	localParty     btss.Party
+	acceptedShares map[blame.RoundInfo][]string
+}
+
+func newJob(party btss.Party, wireBytes []byte, from *btss.PartyID, acceptedShares map[blame.RoundInfo][]string, isBroadcast bool) *tssJob {
+	return &tssJob{
+		wireBytes:      wireBytes,
+		partyID:        from,
+		isBroadcast:    isBroadcast,
+		localParty:     party,
+		acceptedShares: acceptedShares,
+	}
+}
+
+func (t *TssCommon) doTssJob(tssJobChan chan *tssJob, dones chan<- struct{}) {
+	defer func() {
+		dones <- struct {
+		}{}
+	}()
+
+	for tssjob := range tssJobChan {
+		party := tssjob.localParty
+		wireBytes := tssjob.wireBytes
+		partyID := tssjob.partyID
+		isBroadcast := tssjob.isBroadcast
+		acceptedShares := tssjob.acceptedShares
+
+		round, err := GetMsgRound(wireBytes, partyID, isBroadcast)
+		if err != nil {
+			t.logger.Error().Err(err).Msg("broken tss share")
+			continue
+		}
+
+		_, errUp := party.UpdateFromBytes(wireBytes, partyID, isBroadcast)
+		if errUp != nil {
+			err := t.processInvalidMsgBlame(round.RoundMsg, round, errUp)
+			t.logger.Error().Err(err).Msgf("fail to apply the share to tss")
+			continue
+			// return
+		}
+		// we need to retrieve the partylist again as others may update it once we process apply tss share
+		t.updateLock.Lock()
+		partyList, ok := acceptedShares[round]
+		if !ok {
+			partyList := []string{partyID.Id}
+			acceptedShares[round] = partyList
+			t.updateLock.Unlock()
+			continue
+			// return
+		}
+		partyList = append(partyList, partyID.Id)
+		acceptedShares[round] = partyList
+		t.updateLock.Unlock()
+	}
+}
+
 func (t *TssCommon) renderToP2P(broadcastMsg *messages.BroadcastMsgChan) {
 	if t.broadcastChannel == nil {
 		t.logger.Warn().Msg("broadcast channel is not set")
@@ -131,7 +192,7 @@ func (t *TssCommon) SetLocalPeerID(peerID string) {
 	t.localPeerID = peerID
 }
 
-func (t *TssCommon) processInvalidMsgBlame(wireMsg *messages.WireMessage, round blame.RoundInfo, err *btss.Error) error {
+func (t *TssCommon) processInvalidMsgBlame(roundInfo string, round blame.RoundInfo, err *btss.Error) error {
 	// now we get the culprits ID, invalid message and signature the culprits sent
 	var culpritsID []string
 	var invalidMsgs []*messages.WireMessage
@@ -139,7 +200,7 @@ func (t *TssCommon) processInvalidMsgBlame(wireMsg *messages.WireMessage, round 
 	t.culprits = append(t.culprits, err.Culprits()...)
 	for _, el := range err.Culprits() {
 		culpritsID = append(culpritsID, el.Id)
-		key := fmt.Sprintf("%s-%s", el.Id, wireMsg.RoundInfo)
+		key := fmt.Sprintf("%s-%s", el.Id, roundInfo)
 		storedMsg := t.blameMgr.GetRoundMgr().Get(key)
 		invalidMsgs = append(invalidMsgs, storedMsg)
 	}
@@ -210,7 +271,14 @@ func (t *TssCommon) updateLocal(wireMsg *messages.WireMessage) error {
 		return err
 	}
 	acceptedShares := t.blameMgr.GetAcceptShares()
-	var wg sync.WaitGroup
+
+	worker := runtime.NumCPU()
+	working := worker
+	dones := make(chan struct{}, worker)
+	tssJobChan := make(chan *tssJob, len(bulkMsg))
+	for i := 0; i < worker; i++ {
+		go t.doTssJob(tssJobChan, dones)
+	}
 	for _, msg := range bulkMsg {
 
 		data, ok := partyInfo.PartyMap.Load(msg.MsgIdentifier)
@@ -257,32 +325,41 @@ func (t *TssCommon) updateLocal(wireMsg *messages.WireMessage) error {
 			return errors.New(blame.TssBrokenMsg)
 		}
 
-		wg.Add(1)
-		go func(party btss.Party, wireBytes []byte, from *btss.PartyID, isBroadcast bool) {
-			defer wg.Done()
-			_, errUp := party.UpdateFromBytes(wireBytes, partyID, msg.Routing.IsBroadcast)
-			if errUp != nil {
-				err := t.processInvalidMsgBlame(wireMsg, round, errUp)
-				t.logger.Error().Err(err).Msgf("fail to apply the share to tss")
-				return
-			}
-			// we need to retrieve the partylist again as others may update it once we process apply tss share
-			t.updateLock.Lock()
-			defer t.updateLock.Unlock()
-			partyList, ok = acceptedShares[round]
-			if !ok {
-				partyList := []string{partyID.Id}
-				acceptedShares[round] = partyList
-				return
-			}
-			partyList = append(partyList, partyID.Id)
-			acceptedShares[round] = partyList
-		}(localMsgParty, msg.WiredBulkMsgs, partyID, msg.Routing.IsBroadcast)
+		job := newJob(localMsgParty, msg.WiredBulkMsgs, partyID, acceptedShares, msg.Routing.IsBroadcast)
+		tssJobChan <- job
+		//go func(party btss.Party, wireBytes []byte, from *btss.PartyID, isBroadcast bool) {
+		//	_, errUp := party.UpdateFromBytes(wireBytes, partyID, msg.Routing.IsBroadcast)
+		//	if errUp != nil {
+		//		err := t.processInvalidMsgBlame(round.RoundMsg, round, errUp)
+		//		t.logger.Error().Err(err).Msgf("fail to apply the share to tss")
+		//		return
+		//	}
+		//	// we need to retrieve the partylist again as others may update it once we process apply tss share
+		//	t.updateLock.Lock()
+		//	defer t.updateLock.Unlock()
+		//	partyList, ok = acceptedShares[round]
+		//	if !ok {
+		//		partyList := []string{partyID.Id}
+		//		acceptedShares[round] = partyList
+		//		return
+		//	}
+		//	partyList = append(partyList, partyID.Id)
+		//	acceptedShares[round] = partyList
+		//}(localMsgParty, msg.WiredBulkMsgs, partyID, msg.Routing.IsBroadcast)
 
 	}
-
-	wg.Wait()
-
+	close(tssJobChan)
+	done := false
+	for {
+		<-dones
+		working -= 1
+		if working <= 0 {
+			done = true
+		}
+		if done {
+			break
+		}
+	}
 	return nil
 }
 
