@@ -93,15 +93,17 @@ func NewBulkWireMsg(msg []byte, id string, r *btss.MessageRouting) BulkWireMsg {
 
 type tssJob struct {
 	wireBytes      []byte
+	msgIdentifier  string
 	partyID        *btss.PartyID
 	isBroadcast    bool
 	localParty     btss.Party
 	acceptedShares map[blame.RoundInfo][]string
 }
 
-func newJob(party btss.Party, wireBytes []byte, from *btss.PartyID, acceptedShares map[blame.RoundInfo][]string, isBroadcast bool) *tssJob {
+func newJob(party btss.Party, wireBytes []byte, msgIdentifier string, from *btss.PartyID, acceptedShares map[blame.RoundInfo][]string, isBroadcast bool) *tssJob {
 	return &tssJob{
 		wireBytes:      wireBytes,
+		msgIdentifier:  msgIdentifier,
 		partyID:        from,
 		isBroadcast:    isBroadcast,
 		localParty:     party,
@@ -127,13 +129,13 @@ func (t *TssCommon) doTssJob(tssJobChan chan *tssJob, dones chan<- struct{}) {
 			t.logger.Error().Err(err).Msg("broken tss share")
 			continue
 		}
+		round.MsgIdentifier = tssjob.msgIdentifier
 
 		_, errUp := party.UpdateFromBytes(wireBytes, partyID, isBroadcast)
 		if errUp != nil {
 			err := t.processInvalidMsgBlame(round.RoundMsg, round, errUp)
 			t.logger.Error().Err(err).Msgf("fail to apply the share to tss")
 			continue
-			// return
 		}
 		// we need to retrieve the partylist again as others may update it once we process apply tss share
 		t.updateLock.Lock()
@@ -143,7 +145,6 @@ func (t *TssCommon) doTssJob(tssJobChan chan *tssJob, dones chan<- struct{}) {
 			acceptedShares[round] = partyList
 			t.updateLock.Unlock()
 			continue
-			// return
 		}
 		partyList = append(partyList, partyID.Id)
 		acceptedShares[round] = partyList
@@ -255,15 +256,6 @@ func (t *TssCommon) updateLocal(wireMsg *messages.WireMessage) error {
 		t.blameMgr.SetLastUnicastPeer(dataOwnerPeerID, wireMsg.RoundInfo)
 	}
 
-	partyInlist := func(el *btss.PartyID, l []*btss.PartyID) bool {
-		for _, each := range l {
-			if el == each {
-				return true
-			}
-		}
-		return false
-	}
-
 	var bulkMsg []BulkWireMsg
 	err := json.Unmarshal(wireMsg.Message, &bulkMsg)
 	if err != nil {
@@ -280,7 +272,6 @@ func (t *TssCommon) updateLocal(wireMsg *messages.WireMessage) error {
 		go t.doTssJob(tssJobChan, dones)
 	}
 	for _, msg := range bulkMsg {
-
 		data, ok := partyInfo.PartyMap.Load(msg.MsgIdentifier)
 		if !ok {
 			t.logger.Error().Msg("cannot find the party to this wired msg")
@@ -320,33 +311,21 @@ func (t *TssCommon) updateLocal(wireMsg *messages.WireMessage) error {
 			continue
 		}
 
+		partyInlist := func(el *btss.PartyID, l []*btss.PartyID) bool {
+			for _, each := range l {
+				if el == each {
+					return true
+				}
+			}
+			return false
+		}
+
 		if len(t.culprits) != 0 && partyInlist(partyID, t.culprits) {
 			t.logger.Error().Msgf("the malicious party (party ID:%s) try to send incorrect message to me (party ID:%s)", partyID.Id, localMsgParty.PartyID().Id)
 			return errors.New(blame.TssBrokenMsg)
 		}
-
-		job := newJob(localMsgParty, msg.WiredBulkMsgs, partyID, acceptedShares, msg.Routing.IsBroadcast)
+		job := newJob(localMsgParty, msg.WiredBulkMsgs, round.MsgIdentifier, partyID, acceptedShares, msg.Routing.IsBroadcast)
 		tssJobChan <- job
-		//go func(party btss.Party, wireBytes []byte, from *btss.PartyID, isBroadcast bool) {
-		//	_, errUp := party.UpdateFromBytes(wireBytes, partyID, msg.Routing.IsBroadcast)
-		//	if errUp != nil {
-		//		err := t.processInvalidMsgBlame(round.RoundMsg, round, errUp)
-		//		t.logger.Error().Err(err).Msgf("fail to apply the share to tss")
-		//		return
-		//	}
-		//	// we need to retrieve the partylist again as others may update it once we process apply tss share
-		//	t.updateLock.Lock()
-		//	defer t.updateLock.Unlock()
-		//	partyList, ok = acceptedShares[round]
-		//	if !ok {
-		//		partyList := []string{partyID.Id}
-		//		acceptedShares[round] = partyList
-		//		return
-		//	}
-		//	partyList = append(partyList, partyID.Id)
-		//	acceptedShares[round] = partyList
-		//}(localMsgParty, msg.WiredBulkMsgs, partyID, msg.Routing.IsBroadcast)
-
 	}
 	close(tssJobChan)
 	done := false
@@ -622,7 +601,7 @@ func (t *TssCommon) applyShare(localCacheItem *LocalCacheItem, threshold int, ke
 			return nil
 		}
 		if errors.Is(err, blame.ErrNotMajority) {
-			t.logger.Error().Err(err).Msg("we send request to get the message mathch with majority")
+			t.logger.Error().Err(err).Msg("we send request to get the message match with majority")
 			localCacheItem.Msg = nil
 			return t.requestShareFromPeer(localCacheItem, threshold, key, msgType)
 		}

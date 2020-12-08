@@ -453,7 +453,7 @@ func (t *TssTestSuite) TestProcessInvalidMsgBlame(c *C) {
 	}
 
 	fakeErr := btss.NewError(errors.New("test error"), "test task", 1, nil, culprits...)
-	tssCommonStruct.processInvalidMsgBlame(&wiredMsg, blame.RoundInfo{RoundMsg: roundInfo}, fakeErr)
+	tssCommonStruct.processInvalidMsgBlame(wiredMsg.RoundInfo, blame.RoundInfo{RoundMsg: roundInfo}, fakeErr)
 	blameResult := tssCommonStruct.GetBlameMgr().GetBlame()
 	c.Assert(blameResult.BlameNodes, HasLen, 3)
 

@@ -334,9 +334,9 @@ func (t *TssServer) batchSignatures(sigs []*signing.SignatureData) keysign.Respo
 	var signatures []keysign.Signature
 	for _, sig := range sigs {
 		msg := base64.StdEncoding.EncodeToString(sig.GetSignature().M)
-		R := base64.StdEncoding.EncodeToString(sig.GetSignature().R)
-		S := base64.StdEncoding.EncodeToString(sig.GetSignature().S)
-		signature := keysign.NewSignature(msg, R, S)
+		r := base64.StdEncoding.EncodeToString(sig.GetSignature().R)
+		s := base64.StdEncoding.EncodeToString(sig.GetSignature().S)
+		signature := keysign.NewSignature(msg, r, s)
 		signatures = append(signatures, signature)
 	}
 	return keysign.NewResponse(

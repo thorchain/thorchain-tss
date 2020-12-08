@@ -16,8 +16,10 @@ import (
 	"time"
 
 	"github.com/binance-chain/tss-lib/ecdsa/signing"
+	btss "github.com/binance-chain/tss-lib/tss"
 	"github.com/ipfs/go-log"
 	"github.com/libp2p/go-libp2p-peerstore/addr"
+	zlog "github.com/rs/zerolog/log"
 
 	"gitlab.com/thorchain/tss/go-tss/conversion"
 
@@ -260,62 +262,69 @@ func observeAndStop(c *C, tssKeySign *TssKeySign, stopChan chan struct{}) {
 	}
 }
 
-//
-//func (s *TssKeysignTestSuite) TestSignMessageWithStop(c *C) {
-//	if testing.Short() {
-//		c.Skip("skip the test")
-//		return
-//	}
-//	sort.Strings(testPubKeys)
-//	req := NewRequest("thorpub1addwnpepqv6xp3fmm47dfuzglywqvpv8fdjv55zxte4a26tslcezns5czv586u2fw33", "helloworld-test111", 10, testPubKeys, "")
-//	messageID, err := common.MsgToHashString([]byte(req.Message))
-//	c.Assert(err, IsNil)
-//	wg := sync.WaitGroup{}
-//	conf := common.TssConfig{
-//		KeyGenTimeout:   10 * time.Second,
-//		KeySignTimeout:  10 * time.Second,
-//		PreParamTimeout: 5 * time.Second,
-//	}
-//
-//	for i := 0; i < s.partyNum; i++ {
-//		wg.Add(1)
-//		go func(idx int) {
-//			defer wg.Done()
-//			comm := s.comms[idx]
-//			stopChan := make(chan struct{})
-//			keysignIns := NewTssKeySign(comm.GetLocalPeerID(),
-//				conf,
-//				comm.BroadcastMsgChan,
-//				stopChan, messageID,
-//				s.nodePrivKeys[idx], s.comms[idx], s.stateMgrs[idx])
-//			keysignMsgChannel := keysignIns.GetTssKeySignChannels()
-//
-//			comm.SetSubscribe(messages.TSSKeySignMsg, messageID, keysignMsgChannel)
-//			comm.SetSubscribe(messages.TSSKeySignVerMsg, messageID, keysignMsgChannel)
-//			comm.SetSubscribe(messages.TSSControlMsg, messageID, keysignMsgChannel)
-//			comm.SetSubscribe(messages.TSSTaskDone, messageID, keysignMsgChannel)
-//			defer comm.CancelSubscribe(messages.TSSKeySignMsg, messageID)
-//			defer comm.CancelSubscribe(messages.TSSKeySignVerMsg, messageID)
-//			defer comm.CancelSubscribe(messages.TSSControlMsg, messageID)
-//			defer comm.CancelSubscribe(messages.TSSTaskDone, messageID)
-//
-//			localState, err := s.stateMgrs[idx].GetLocalState(req.PoolPubKey)
-//			c.Assert(err, IsNil)
-//			if idx == 1 {
-//				go observeAndStop(c, keysignIns, stopChan)
-//			}
-//			_, err = keysignIns.SignMessage([]byte(req.Message), localState, req.SignerPubKeys)
-//			c.Assert(err, NotNil)
-//			// we skip the node 1 as we force it to stop
-//			if idx != 1 {
-//				blames := keysignIns.GetTssCommonStruct().GetBlameMgr().GetBlame().BlameNodes
-//				c.Assert(blames, HasLen, 1)
-//				c.Assert(blames[0].Pubkey, Equals, testPubKeys[1])
-//			}
-//		}(i)
-//	}
-//	wg.Wait()
-//}
+func (s *TssKeysignTestSuite) TestSignMessageWithStop(c *C) {
+	if testing.Short() {
+		c.Skip("skip the test")
+		return
+	}
+	sort.Strings(testPubKeys)
+	req := NewRequest("thorpub1addwnpepqv6xp3fmm47dfuzglywqvpv8fdjv55zxte4a26tslcezns5czv586u2fw33", []string{"helloworld-test", "t"}, 10, testPubKeys, "")
+	sort.Strings(req.Messages)
+	dat := []byte(strings.Join(req.Messages, ","))
+	messageID, err := common.MsgToHashString(dat)
+	c.Assert(err, IsNil)
+
+	wg := sync.WaitGroup{}
+	conf := common.TssConfig{
+		KeyGenTimeout:   10 * time.Second,
+		KeySignTimeout:  10 * time.Second,
+		PreParamTimeout: 5 * time.Second,
+	}
+
+	for i := 0; i < s.partyNum; i++ {
+		wg.Add(1)
+		go func(idx int) {
+			defer wg.Done()
+			comm := s.comms[idx]
+			stopChan := make(chan struct{})
+			keysignIns := NewTssKeySign(comm.GetLocalPeerID(),
+				conf,
+				comm.BroadcastMsgChan,
+				stopChan, messageID,
+				s.nodePrivKeys[idx], s.comms[idx], s.stateMgrs[idx], 2)
+			keysignMsgChannel := keysignIns.GetTssKeySignChannels()
+
+			comm.SetSubscribe(messages.TSSKeySignMsg, messageID, keysignMsgChannel)
+			comm.SetSubscribe(messages.TSSKeySignVerMsg, messageID, keysignMsgChannel)
+			comm.SetSubscribe(messages.TSSControlMsg, messageID, keysignMsgChannel)
+			comm.SetSubscribe(messages.TSSTaskDone, messageID, keysignMsgChannel)
+			defer comm.CancelSubscribe(messages.TSSKeySignMsg, messageID)
+			defer comm.CancelSubscribe(messages.TSSKeySignVerMsg, messageID)
+			defer comm.CancelSubscribe(messages.TSSControlMsg, messageID)
+			defer comm.CancelSubscribe(messages.TSSTaskDone, messageID)
+
+			localState, err := s.stateMgrs[idx].GetLocalState(req.PoolPubKey)
+			c.Assert(err, IsNil)
+			if idx == 1 {
+				go observeAndStop(c, keysignIns, stopChan)
+			}
+
+			var msgsToSign [][]byte
+			msgsToSign = append(msgsToSign, []byte(req.Messages[0]))
+			msgsToSign = append(msgsToSign, []byte(req.Messages[1]))
+
+			_, err = keysignIns.SignMessage(msgsToSign, localState, req.SignerPubKeys)
+			c.Assert(err, NotNil)
+			// we skip the node 1 as we force it to stop
+			if idx != 1 {
+				blames := keysignIns.GetTssCommonStruct().GetBlameMgr().GetBlame().BlameNodes
+				c.Assert(blames, HasLen, 1)
+				c.Assert(blames[0].Pubkey, Equals, testPubKeys[1])
+			}
+		}(i)
+	}
+	wg.Wait()
+}
 
 func rejectSendToOnePeer(c *C, tssKeySign *TssKeySign, stopChan chan struct{}, targetPeers []peer.ID) {
 	for {
@@ -344,55 +353,61 @@ func rejectSendToOnePeer(c *C, tssKeySign *TssKeySign, stopChan chan struct{}, t
 	}
 }
 
-//func (s *TssKeysignTestSuite) TestSignMessageRejectOnePeer(c *C) {
-//	if testing.Short() {
-//		c.Skip("skip the test")
-//		return
-//	}
-//	sort.Strings(testPubKeys)
-//	req := NewRequest("thorpub1addwnpepqv6xp3fmm47dfuzglywqvpv8fdjv55zxte4a26tslcezns5czv586u2fw33", "helloworld-test111", 10, testPubKeys, "")
-//	messageID, err := common.MsgToHashString([]byte(req.Message))
-//	c.Assert(err, IsNil)
-//	wg := sync.WaitGroup{}
-//	conf := common.TssConfig{
-//		KeyGenTimeout:   20 * time.Second,
-//		KeySignTimeout:  20 * time.Second,
-//		PreParamTimeout: 5 * time.Second,
-//	}
-//	for i := 0; i < s.partyNum; i++ {
-//		wg.Add(1)
-//		go func(idx int) {
-//			defer wg.Done()
-//			comm := s.comms[idx]
-//			stopChan := make(chan struct{})
-//			keysignIns := NewTssKeySign(comm.GetLocalPeerID(),
-//				conf,
-//				comm.BroadcastMsgChan,
-//				stopChan, messageID, s.nodePrivKeys[idx], s.comms[idx], s.stateMgrs[idx])
-//			keysignMsgChannel := keysignIns.GetTssKeySignChannels()
-//
-//			comm.SetSubscribe(messages.TSSKeySignMsg, messageID, keysignMsgChannel)
-//			comm.SetSubscribe(messages.TSSKeySignVerMsg, messageID, keysignMsgChannel)
-//			comm.SetSubscribe(messages.TSSControlMsg, messageID, keysignMsgChannel)
-//			comm.SetSubscribe(messages.TSSTaskDone, messageID, keysignMsgChannel)
-//			defer comm.CancelSubscribe(messages.TSSKeySignMsg, messageID)
-//			defer comm.CancelSubscribe(messages.TSSKeySignVerMsg, messageID)
-//			defer comm.CancelSubscribe(messages.TSSControlMsg, messageID)
-//			defer comm.CancelSubscribe(messages.TSSTaskDone, messageID)
-//
-//			localState, err := s.stateMgrs[idx].GetLocalState(req.PoolPubKey)
-//			c.Assert(err, IsNil)
-//			if idx == 1 {
-//				go rejectSendToOnePeer(c, keysignIns, stopChan, s.targetPeers)
-//			}
-//			_, err = keysignIns.SignMessage([]byte(req.Message), localState, req.SignerPubKeys)
-//			lastMsg := keysignIns.tssCommonStruct.GetBlameMgr().GetLastMsg()
-//			log.Info().Msgf("%s------->last message %v, broadcast? %v", keysignIns.tssCommonStruct.GetLocalPeerID(), lastMsg.Type(), lastMsg.IsBroadcast())
-//			c.Assert(err, IsNil)
-//		}(i)
-//	}
-//	wg.Wait()
-//}
+func (s *TssKeysignTestSuite) TestSignMessageRejectOnePeer(c *C) {
+	if testing.Short() {
+		c.Skip("skip the test")
+		return
+	}
+	sort.Strings(testPubKeys)
+	req := NewRequest("thorpub1addwnpepqv6xp3fmm47dfuzglywqvpv8fdjv55zxte4a26tslcezns5czv586u2fw33", []string{"helloworld-test", "t"}, 10, testPubKeys, "")
+	sort.Strings(req.Messages)
+	dat := []byte(strings.Join(req.Messages, ","))
+	messageID, err := common.MsgToHashString(dat)
+	c.Assert(err, IsNil)
+
+	wg := sync.WaitGroup{}
+	conf := common.TssConfig{
+		KeyGenTimeout:   20 * time.Second,
+		KeySignTimeout:  20 * time.Second,
+		PreParamTimeout: 5 * time.Second,
+	}
+	for i := 0; i < s.partyNum; i++ {
+		wg.Add(1)
+		go func(idx int) {
+			defer wg.Done()
+			comm := s.comms[idx]
+			stopChan := make(chan struct{})
+			keysignIns := NewTssKeySign(comm.GetLocalPeerID(),
+				conf,
+				comm.BroadcastMsgChan,
+				stopChan, messageID, s.nodePrivKeys[idx], s.comms[idx], s.stateMgrs[idx], 2)
+			keysignMsgChannel := keysignIns.GetTssKeySignChannels()
+
+			comm.SetSubscribe(messages.TSSKeySignMsg, messageID, keysignMsgChannel)
+			comm.SetSubscribe(messages.TSSKeySignVerMsg, messageID, keysignMsgChannel)
+			comm.SetSubscribe(messages.TSSControlMsg, messageID, keysignMsgChannel)
+			comm.SetSubscribe(messages.TSSTaskDone, messageID, keysignMsgChannel)
+			defer comm.CancelSubscribe(messages.TSSKeySignMsg, messageID)
+			defer comm.CancelSubscribe(messages.TSSKeySignVerMsg, messageID)
+			defer comm.CancelSubscribe(messages.TSSControlMsg, messageID)
+			defer comm.CancelSubscribe(messages.TSSTaskDone, messageID)
+
+			localState, err := s.stateMgrs[idx].GetLocalState(req.PoolPubKey)
+			c.Assert(err, IsNil)
+			if idx == 1 {
+				go rejectSendToOnePeer(c, keysignIns, stopChan, s.targetPeers)
+			}
+			var msgsToSign [][]byte
+			msgsToSign = append(msgsToSign, []byte(req.Messages[0]))
+			msgsToSign = append(msgsToSign, []byte(req.Messages[1]))
+			_, err = keysignIns.SignMessage(msgsToSign, localState, req.SignerPubKeys)
+			lastMsg := keysignIns.tssCommonStruct.GetBlameMgr().GetLastMsg()
+			zlog.Info().Msgf("%s------->last message %v, broadcast? %v", keysignIns.tssCommonStruct.GetLocalPeerID(), lastMsg.Type(), lastMsg.IsBroadcast())
+			c.Assert(err, IsNil)
+		}(i)
+	}
+	wg.Wait()
+}
 
 func (s *TssKeysignTestSuite) TearDownSuite(c *C) {
 	for i, _ := range s.comms {
@@ -413,31 +428,31 @@ func (s *TssKeysignTestSuite) TearDownTest(c *C) {
 	}
 }
 
-//func (s *TssKeysignTestSuite) TestCloseKeySignnotifyChannel(c *C) {
-//	conf := common.TssConfig{}
-//	keySignInstance := NewTssKeySign("", conf, nil, nil, "test", s.nodePrivKeys[0], s.comms[0], s.stateMgrs[0])
-//
-//	taskDone := messages.TssTaskNotifier{TaskDone: true}
-//	taskDoneBytes, err := json.Marshal(taskDone)
-//	c.Assert(err, IsNil)
-//
-//	msg := &messages.WrappedMessage{
-//		MessageType: messages.TSSTaskDone,
-//		MsgID:       "test",
-//		Payload:     taskDoneBytes,
-//	}
-//	partyIdMap := make(map[string]*btss.PartyID)
-//	partyIdMap["1"] = nil
-//	partyIdMap["2"] = nil
-//	fakePartyInfo := &common.PartyInfo{
-//		Party:      nil,
-//		PartyIDMap: partyIdMap,
-//	}
-//	keySignInstance.tssCommonStruct.SetPartyInfo(fakePartyInfo)
-//	err = keySignInstance.tssCommonStruct.ProcessOneMessage(msg, "node1")
-//	c.Assert(err, IsNil)
-//	err = keySignInstance.tssCommonStruct.ProcessOneMessage(msg, "node2")
-//	c.Assert(err, IsNil)
-//	err = keySignInstance.tssCommonStruct.ProcessOneMessage(msg, "node1")
-//	c.Assert(err, ErrorMatches, "duplicated notification from peer node1 ignored")
-//}
+func (s *TssKeysignTestSuite) TestCloseKeySignnotifyChannel(c *C) {
+	conf := common.TssConfig{}
+	keySignInstance := NewTssKeySign("", conf, nil, nil, "test", s.nodePrivKeys[0], s.comms[0], s.stateMgrs[0], 1)
+
+	taskDone := messages.TssTaskNotifier{TaskDone: true}
+	taskDoneBytes, err := json.Marshal(taskDone)
+	c.Assert(err, IsNil)
+
+	msg := &messages.WrappedMessage{
+		MessageType: messages.TSSTaskDone,
+		MsgID:       "test",
+		Payload:     taskDoneBytes,
+	}
+	partyIdMap := make(map[string]*btss.PartyID)
+	partyIdMap["1"] = nil
+	partyIdMap["2"] = nil
+	fakePartyInfo := &common.PartyInfo{
+		PartyMap:   nil,
+		PartyIDMap: partyIdMap,
+	}
+	keySignInstance.tssCommonStruct.SetPartyInfo(fakePartyInfo)
+	err = keySignInstance.tssCommonStruct.ProcessOneMessage(msg, "node1")
+	c.Assert(err, IsNil)
+	err = keySignInstance.tssCommonStruct.ProcessOneMessage(msg, "node2")
+	c.Assert(err, IsNil)
+	err = keySignInstance.tssCommonStruct.ProcessOneMessage(msg, "node1")
+	c.Assert(err, ErrorMatches, "duplicated notification from peer node1 ignored")
+}
