@@ -97,7 +97,6 @@ func (s *SignatureNotifier) handleStream(stream network.Stream) {
 		logger.Error().Err(err).Msg("fail to verify local signature data")
 		return
 	}
-	fmt.Printf("------------>%v\n", finished)
 	if finished {
 		delete(s.notifiers, msg.ID)
 	}

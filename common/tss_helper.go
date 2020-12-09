@@ -229,10 +229,12 @@ func (t *TssCommon) NotifyTaskDone() error {
 		MsgID:       t.msgID,
 		Payload:     data,
 	}
-
+	t.P2PPeersLock.RLock()
+	peers := t.P2PPeers
+	t.P2PPeersLock.RUnlock()
 	t.renderToP2P(&messages.BroadcastMsgChan{
 		WrappedMessage: wrappedMsg,
-		PeersID:        t.P2PPeers,
+		PeersID:        peers,
 	})
 	return nil
 }

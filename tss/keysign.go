@@ -22,21 +22,6 @@ import (
 )
 
 func (t *TssServer) waitForSignatures(msgID, poolPubKey string, msgsToSign [][]byte, sigChan chan string) (keysign.Response, error) {
-	sort.SliceStable(msgsToSign, func(i, j int) bool {
-		ma, err := common.MsgToHashInt(msgsToSign[i])
-		if err != nil {
-			t.logger.Error().Err(err).Msgf("fail to convert the hash value")
-		}
-		mb, err := common.MsgToHashInt(msgsToSign[j])
-		if err != nil {
-			t.logger.Error().Err(err).Msgf("fail to convert the hash value")
-		}
-		if ma.Cmp(mb) == -1 {
-			return false
-		}
-		return true
-	})
-
 	// TSS keysign include both form party and keysign itself, thus we wait twice of the timeout
 	data, err := t.signatureNotifier.WaitForSignature(msgID, msgsToSign, poolPubKey, t.conf.KeySignTimeout, sigChan)
 	if err != nil {
@@ -250,6 +235,21 @@ func (t *TssServer) KeySign(req keysign.Request) (keysign.Response, error) {
 		}
 		msgsToSign = append(msgsToSign, msgToSign)
 	}
+
+	sort.SliceStable(msgsToSign, func(i, j int) bool {
+		ma, err := common.MsgToHashInt(msgsToSign[i])
+		if err != nil {
+			t.logger.Error().Err(err).Msgf("fail to convert the hash value")
+		}
+		mb, err := common.MsgToHashInt(msgsToSign[j])
+		if err != nil {
+			t.logger.Error().Err(err).Msgf("fail to convert the hash value")
+		}
+		if ma.Cmp(mb) == -1 {
+			return false
+		}
+		return true
+	})
 
 	oldJoinParty, err := conversion.VersionLTCheck(req.Version, messages.NEWJOINPARTYVERSION)
 	if err != nil {

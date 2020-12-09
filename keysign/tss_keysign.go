@@ -134,7 +134,9 @@ func (tKeySign *TssKeySign) SignMessage(msgsToSign [][]byte, localStateItem stor
 
 	blameMgr.SetPartyInfo(keySignPartyMap, partyIDMap)
 
+	tKeySign.tssCommonStruct.P2PPeersLock.Lock()
 	tKeySign.tssCommonStruct.P2PPeers = conversion.GetPeersID(tKeySign.tssCommonStruct.PartyIDtoP2PID, tKeySign.tssCommonStruct.GetLocalPeerID())
+	tKeySign.tssCommonStruct.P2PPeersLock.Unlock()
 	var keySignWg sync.WaitGroup
 	keySignWg.Add(2)
 	// start the key sign
@@ -197,7 +199,10 @@ func (tKeySign *TssKeySign) processKeySign(reqNum int, errChan chan struct{}, ou
 			if failReason == "" {
 				failReason = blame.TssTimeout
 			}
+
+			tKeySign.tssCommonStruct.P2PPeersLock.RLock()
 			threshold, err := conversion.GetThreshold(len(tKeySign.tssCommonStruct.P2PPeers) + 1)
+			tKeySign.tssCommonStruct.P2PPeersLock.RUnlock()
 			if err != nil {
 				tKeySign.logger.Error().Err(err).Msg("error in get the threshold for generate blame")
 			}

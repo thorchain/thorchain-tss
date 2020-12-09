@@ -214,7 +214,9 @@ func setupProcessVerMsgEnv(c *C, privKey tcrypto.PrivKey, keyPool []string, part
 	c.Assert(err, IsNil)
 	tssCommonStruct.blameMgr.SetPartyInfo(partyMap, partyIDMap)
 	peerPartiesID := append(partiesID[:localPartyID.Index], partiesID[localPartyID.Index+1:]...)
+	tssCommonStruct.P2PPeersLock.Lock()
 	tssCommonStruct.P2PPeers = conversion.GetPeersID(tssCommonStruct.PartyIDtoP2PID, tssCommonStruct.GetLocalPeerID())
+	tssCommonStruct.P2PPeersLock.Unlock()
 	return tssCommonStruct, peerPartiesID, partiesID
 }
 

@@ -341,11 +341,13 @@ func rejectSendToOnePeer(c *C, tssKeySign *TssKeySign, stopChan chan struct{}, t
 				roundD, err := strconv.Atoi(round)
 				c.Assert(err, IsNil)
 				if roundD > 6 {
+					tssKeySign.tssCommonStruct.P2PPeersLock.Lock()
 					peersID := tssKeySign.tssCommonStruct.P2PPeers
 					sort.Slice(peersID, func(i, j int) bool {
 						return peersID[i].String() > peersID[j].String()
 					})
 					tssKeySign.tssCommonStruct.P2PPeers = targetPeers
+					tssKeySign.tssCommonStruct.P2PPeersLock.Unlock()
 					return
 				}
 			}

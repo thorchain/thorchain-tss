@@ -10,14 +10,27 @@ import (
 )
 
 type PeerStatus struct {
-	peersResponse  map[peer.ID]bool
-	peerStatusLock *sync.RWMutex
-	notify         chan bool
-	newFound       chan bool
-	leaderResponse *messages.JoinPartyLeaderComm
-	leader         string
-	threshold      int
-	reqCount       int
+	peersResponse      map[peer.ID]bool
+	peerStatusLock     *sync.RWMutex
+	notify             chan bool
+	newFound           chan bool
+	leaderResponse     *messages.JoinPartyLeaderComm
+	leaderResponseLock *sync.RWMutex
+	leader             string
+	threshold          int
+	reqCount           int
+}
+
+func (ps *PeerStatus) getLeaderResponse() *messages.JoinPartyLeaderComm {
+	ps.leaderResponseLock.RLock()
+	defer ps.leaderResponseLock.RUnlock()
+	return ps.leaderResponse
+}
+
+func (ps *PeerStatus) setLeaderResponse(resp *messages.JoinPartyLeaderComm) {
+	ps.leaderResponseLock.Lock()
+	defer ps.leaderResponseLock.Unlock()
+	ps.leaderResponse = resp
 }
 
 func NewPeerStatus(peerNodes []peer.ID, myPeerID peer.ID, leader string, threshold int) *PeerStatus {
@@ -29,13 +42,14 @@ func NewPeerStatus(peerNodes []peer.ID, myPeerID peer.ID, leader string, thresho
 		dat[el] = false
 	}
 	peerStatus := &PeerStatus{
-		peersResponse:  dat,
-		peerStatusLock: &sync.RWMutex{},
-		notify:         make(chan bool, len(peerNodes)),
-		newFound:       make(chan bool, len(peerNodes)),
-		leader:         leader,
-		threshold:      threshold,
-		reqCount:       0,
+		peersResponse:      dat,
+		peerStatusLock:     &sync.RWMutex{},
+		notify:             make(chan bool, len(peerNodes)),
+		newFound:           make(chan bool, len(peerNodes)),
+		leader:             leader,
+		threshold:          threshold,
+		reqCount:           0,
+		leaderResponseLock: &sync.RWMutex{},
 	}
 	return peerStatus
 }

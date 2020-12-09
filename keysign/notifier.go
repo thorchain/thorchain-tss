@@ -77,7 +77,6 @@ func (n *Notifier) ProcessSignature(data []*signing.SignatureData) (bool, error)
 				return false, fmt.Errorf("fail to verify signature: %w", err)
 			}
 			if !verify {
-				fmt.Printf("verify fail for msg %v\n", msg)
 				return false, nil
 			}
 		}

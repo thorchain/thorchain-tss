@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"sync"
 )
 
 func NewNode(pk string, blameData, blameSig []byte) Node {
@@ -27,16 +28,21 @@ func NewBlame(reason string, blameNodes []Node) Blame {
 	return Blame{
 		FailReason: reason,
 		BlameNodes: blameNodes,
+		blameLock:  &sync.RWMutex{},
 	}
 }
 
 // IsEmpty check whether it is empty
 func (b *Blame) IsEmpty() bool {
+	b.blameLock.RLock()
+	defer b.blameLock.RUnlock()
 	return len(b.FailReason) == 0
 }
 
 // String implement fmt.Stringer
 func (b Blame) String() string {
+	b.blameLock.RLock()
+	defer b.blameLock.RUnlock()
 	sb := strings.Builder{}
 	sb.WriteString("reason:" + b.FailReason + " is_unicast:" + strconv.FormatBool(b.IsUnicast) + "\n")
 	sb.WriteString(fmt.Sprintf("nodes:%+v\n", b.BlameNodes))
@@ -45,17 +51,23 @@ func (b Blame) String() string {
 
 // SetBlame update the field values of Blame
 func (b *Blame) SetBlame(reason string, nodes []Node, isUnicast bool) {
+	b.blameLock.Lock()
+	defer b.blameLock.Unlock()
 	b.FailReason = reason
 	b.IsUnicast = isUnicast
 	b.BlameNodes = append(b.BlameNodes, nodes...)
 }
 
 func (b *Blame) AlreadyBlame() bool {
+	b.blameLock.RLock()
+	defer b.blameLock.RUnlock()
 	return len(b.BlameNodes) > 0
 }
 
 // AddBlameNodes add nodes to the blame list
 func (b *Blame) AddBlameNodes(newBlameNodes ...Node) {
+	b.blameLock.Lock()
+	defer b.blameLock.Unlock()
 	for _, node := range newBlameNodes {
 		found := false
 		for _, el := range b.BlameNodes {

@@ -76,7 +76,7 @@ func (pc *PartyCoordinator) processRespMsg(respMsg *messages.JoinPartyLeaderComm
 		return
 	}
 	if remotePeer == peerGroup.leader {
-		peerGroup.leaderResponse = respMsg
+		peerGroup.setLeaderResponse(respMsg)
 		peerGroup.notify <- true
 		err := WriteStreamWithBuffer([]byte("done"), stream)
 		if err != nil {
@@ -380,7 +380,8 @@ func (pc *PartyCoordinator) joinPartyMember(msgID string, leader string, thresho
 		}
 	}()
 	wg.Wait()
-	if peerGroup.leaderResponse == nil {
+
+	if peerGroup.getLeaderResponse() == nil {
 		leaderPk, err := conversion.GetPubKeyFromPeerID(leader)
 		if err != nil {
 			pc.logger.Error().Msg("leader is not reachable")
@@ -393,7 +394,7 @@ func (pc *PartyCoordinator) joinPartyMember(msgID string, leader string, thresho
 		return nil, ErrSignReceived
 	}
 
-	onlineNodes := peerGroup.leaderResponse.PeerIDs
+	onlineNodes := peerGroup.getLeaderResponse().PeerIDs
 	// we trust the returned nodes returned by the leader, if tss fail, the leader
 	// also will get blamed.
 	pIDs, err := pc.getPeerIDs(onlineNodes)
@@ -405,7 +406,7 @@ func (pc *PartyCoordinator) joinPartyMember(msgID string, leader string, thresho
 		return pIDs, errors.New("not enough peer")
 	}
 
-	if peerGroup.leaderResponse.Type == messages.JoinPartyLeaderComm_Success {
+	if peerGroup.getLeaderResponse().Type == messages.JoinPartyLeaderComm_Success {
 		return pIDs, nil
 	}
 	pc.logger.Error().Msg("leader response with join party timeout")
@@ -418,7 +419,9 @@ func (pc *PartyCoordinator) joinPartyLeader(msgID string, peers []string, thresh
 		pc.logger.Error().Err(err).Msg("fail to create the join party group")
 		return nil, err
 	}
+	peerGroup.peerStatusLock.Lock()
 	peerGroup.leader = pc.host.ID().String()
+	peerGroup.peerStatusLock.Unlock()
 	allPeers, err := pc.getPeerIDs(peers)
 	if err != nil {
 		pc.logger.Error().Err(err).Msg("fail to parse peer id")

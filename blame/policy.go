@@ -46,9 +46,7 @@ func (m *Manager) tssTimeoutBlame(lastMessageType string, partyIDMap map[string]
 
 // this blame blames the node who cause the timeout in node sync
 func (m *Manager) NodeSyncBlame(keys []string, onlinePeers []peer.ID) (Blame, error) {
-	blame := Blame{
-		FailReason: TssSyncFail,
-	}
+	blame := NewBlame(TssSyncFail, nil)
 	for _, item := range keys {
 		found := false
 		peerID, err := conversion.GetPeerIDFromPubKey(item)
@@ -136,7 +134,7 @@ func (m *Manager) TssMissingShareBlame(rounds int) ([]Node, bool, error) {
 	var blameNodes []Node
 	var peers []string
 	isUnicast := false
-
+	m.acceptShareLocker.Lock()
 	for roundInfo, value := range m.acceptedShares {
 		cachedShares, ok := acceptedShareForMsg[roundInfo.MsgIdentifier]
 		if !ok {
@@ -147,6 +145,7 @@ func (m *Manager) TssMissingShareBlame(rounds int) ([]Node, bool, error) {
 		}
 		cachedShares[roundInfo.Index] = value
 	}
+	m.acceptShareLocker.Unlock()
 
 	for _, cachedShares := range acceptedShareForMsg {
 		// we search from the first round to find the missing
