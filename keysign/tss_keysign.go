@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	tsslibcommon "github.com/binance-chain/tss-lib/common"
 	"github.com/binance-chain/tss-lib/ecdsa/signing"
 	btss "github.com/binance-chain/tss-lib/tss"
 	"github.com/rs/zerolog"
@@ -80,7 +81,7 @@ func (tKeySign *TssKeySign) startBatchSigning(keySignPartyMap *sync.Map, msgNum 
 }
 
 // signMessage
-func (tKeySign *TssKeySign) SignMessage(msgsToSign [][]byte, localStateItem storage.KeygenLocalState, parties []string) ([]*signing.SignatureData, error) {
+func (tKeySign *TssKeySign) SignMessage(msgsToSign [][]byte, localStateItem storage.KeygenLocalState, parties []string) ([]*tsslibcommon.ECSignature, error) {
 	partiesID, localPartyID, err := conversion.GetParties(parties, localStateItem.LocalPartyKey)
 	if err != nil {
 		return nil, fmt.Errorf("fail to form key sign party: %w", err)
@@ -134,7 +135,9 @@ func (tKeySign *TssKeySign) SignMessage(msgsToSign [][]byte, localStateItem stor
 
 	blameMgr.SetPartyInfo(keySignPartyMap, partyIDMap)
 
+	tKeySign.tssCommonStruct.P2PPeersLock.Lock()
 	tKeySign.tssCommonStruct.P2PPeers = conversion.GetPeersID(tKeySign.tssCommonStruct.PartyIDtoP2PID, tKeySign.tssCommonStruct.GetLocalPeerID())
+	tKeySign.tssCommonStruct.P2PPeersLock.Unlock()
 	var keySignWg sync.WaitGroup
 	keySignWg.Add(2)
 	// start the key sign
@@ -162,8 +165,8 @@ func (tKeySign *TssKeySign) SignMessage(msgsToSign [][]byte, localStateItem stor
 
 	tKeySign.logger.Info().Msgf("%s successfully sign the message", tKeySign.p2pComm.GetHost().ID().String())
 	sort.SliceStable(results, func(i, j int) bool {
-		a := new(big.Int).SetBytes(results[i].GetSignature().M)
-		b := new(big.Int).SetBytes(results[j].GetSignature().M)
+		a := new(big.Int).SetBytes(results[i].M)
+		b := new(big.Int).SetBytes(results[j].M)
 
 		if a.Cmp(b) == -1 {
 			return false
@@ -174,10 +177,10 @@ func (tKeySign *TssKeySign) SignMessage(msgsToSign [][]byte, localStateItem stor
 	return results, nil
 }
 
-func (tKeySign *TssKeySign) processKeySign(reqNum int, errChan chan struct{}, outCh <-chan btss.Message, endCh <-chan *signing.SignatureData) ([]*signing.SignatureData, error) {
+func (tKeySign *TssKeySign) processKeySign(reqNum int, errChan chan struct{}, outCh <-chan btss.Message, endCh <-chan *signing.SignatureData) ([]*tsslibcommon.ECSignature, error) {
 	defer tKeySign.logger.Debug().Msg("key sign finished")
 	tKeySign.logger.Debug().Msg("start to read messages from local party")
-	var signatures []*signing.SignatureData
+	var signatures []*tsslibcommon.ECSignature
 
 	tssConf := tKeySign.tssCommonStruct.GetConf()
 	blameMgr := tKeySign.tssCommonStruct.GetBlameMgr()
@@ -197,7 +200,10 @@ func (tKeySign *TssKeySign) processKeySign(reqNum int, errChan chan struct{}, ou
 			if failReason == "" {
 				failReason = blame.TssTimeout
 			}
+
+			tKeySign.tssCommonStruct.P2PPeersLock.RLock()
 			threshold, err := conversion.GetThreshold(len(tKeySign.tssCommonStruct.P2PPeers) + 1)
+			tKeySign.tssCommonStruct.P2PPeersLock.RUnlock()
 			if err != nil {
 				tKeySign.logger.Error().Err(err).Msg("error in get the threshold for generate blame")
 			}
@@ -248,7 +254,7 @@ func (tKeySign *TssKeySign) processKeySign(reqNum int, errChan chan struct{}, ou
 			}
 
 		case msg := <-endCh:
-			signatures = append(signatures, msg)
+			signatures = append(signatures, msg.GetSignature())
 			if len(signatures) == reqNum {
 				tKeySign.logger.Debug().Msg("we have done the key sign")
 				err := tKeySign.tssCommonStruct.NotifyTaskDone()

@@ -42,6 +42,8 @@ func (tr *RoundMgr) Set(key string, msg *messages.WireMessage) {
 
 func (tr *RoundMgr) GetByRound(roundInfo string) []string {
 	var standbyNodes []string
+	tr.storeLocker.Lock()
+	defer tr.storeLocker.Unlock()
 	for _, el := range tr.storedMsg {
 		if el.RoundInfo == roundInfo {
 			standbyNodes = append(standbyNodes, el.Routing.From.Id)

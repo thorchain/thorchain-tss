@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/binance-chain/tss-lib/common"
-	"github.com/binance-chain/tss-lib/ecdsa/signing"
+	tsslibcommon "github.com/binance-chain/tss-lib/common"
 	"github.com/golang/protobuf/proto"
 	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/network"
@@ -75,9 +75,10 @@ func (s *SignatureNotifier) handleStream(stream network.Stream) {
 		return
 	}
 	s.streamMgr.AddStream(msg.ID, stream)
-	var signature []*common.ECSignature
-	if len(msg.Signature) > 0 && msg.KeysignStatus == messages.KeysignSignature_Success {
+	var signatures []*common.ECSignature
+	if len(msg.Signatures) > 0 && msg.KeysignStatus == messages.KeysignSignature_Success {
 		for _, el := range msg.Signatures {
+			var signature common.ECSignature
 			if err := proto.Unmarshal(el, &signature); err != nil {
 				logger.Error().Err(err).Msg("fail to unmarshal signature data")
 				return
@@ -97,7 +98,6 @@ func (s *SignatureNotifier) handleStream(stream network.Stream) {
 		logger.Error().Err(err).Msg("fail to verify local signature data")
 		return
 	}
-	fmt.Printf("------------>%v\n", finished)
 	if finished {
 		delete(s.notifiers, msg.ID)
 	}
@@ -149,11 +149,11 @@ func (s *SignatureNotifier) sendOneMsgToPeer(m *signatureItem) error {
 }
 
 // BroadcastSignature sending the keysign signature to all other peers
-func (s *SignatureNotifier) BroadcastSignature(messageID string, sig []*signing.SignatureData, peers []peer.ID) error {
+func (s *SignatureNotifier) BroadcastSignature(messageID string, sig []*tsslibcommon.ECSignature, peers []peer.ID) error {
 	return s.broadcastCommon(messageID, sig, peers)
 }
 
-func (s *SignatureNotifier) broadcastCommon(messageID string, sig []*signing.SignatureData, peers []peer.ID) error {
+func (s *SignatureNotifier) broadcastCommon(messageID string, sig []*tsslibcommon.ECSignature, peers []peer.ID) error {
 	wg := sync.WaitGroup{}
 	for _, p := range peers {
 		if p == s.host.ID() {
@@ -163,7 +163,7 @@ func (s *SignatureNotifier) broadcastCommon(messageID string, sig []*signing.Sig
 		signature := &signatureItem{
 			messageID:     messageID,
 			peerID:        p,
-			signatureData: sig.GetSignature(),
+			signatureData: sig,
 		}
 		wg.Add(1)
 		go func() {

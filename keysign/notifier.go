@@ -62,15 +62,18 @@ func (n *Notifier) ProcessSignature(data []*common.ECSignature) (bool, error) {
 	// only need to verify the signature when data is not nil
 	// when data is nil , which means keysign  failed, there is no signature to be verified in that case
 	// for gg20, it wrap the signature R,S into ECSignature structure
-	if len(data) == 0 {
-		return false, nil
-	}
-	for i := 0; i < len(data); i++ {
-		eachSig := data[i]
-		if eachSig.GetSignature() != nil {
-			verify, err := n.verifySignature(eachSig)
-			if err != nil || !verify {
-				return false, fmt.Errorf("fail to verify signature: %w", err)
+	if len(data) != 0 {
+
+		for i := 0; i < len(data); i++ {
+			eachSig := data[i]
+			msg := n.messages[i]
+			if eachSig.GetSignature() != nil {
+				verify, err := n.verifySignature(eachSig, msg)
+				if err != nil || !verify {
+					return false, fmt.Errorf("fail to verify signature: %w", err)
+				}
+			} else {
+				return false, errors.New("keysign failed with nil signature")
 			}
 		}
 		n.resp <- data

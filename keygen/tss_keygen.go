@@ -109,13 +109,15 @@ func (tKeyGen *TssKeyGen) GenerateNewKey(keygenReq Request) (*bcrypto.ECPoint, e
 
 	tKeyGen.tssCommonStruct.SetPartyInfo(partyInfo)
 	blameMgr.SetPartyInfo(keyGenPartyMap, partyIDMap)
+	tKeyGen.tssCommonStruct.P2PPeersLock.Lock()
 	tKeyGen.tssCommonStruct.P2PPeers = conversion.GetPeersID(tKeyGen.tssCommonStruct.PartyIDtoP2PID, tKeyGen.tssCommonStruct.GetLocalPeerID())
+	tKeyGen.tssCommonStruct.P2PPeersLock.Unlock()
 	var keyGenWg sync.WaitGroup
 	keyGenWg.Add(2)
 	// start keygen
 	go func() {
 		defer keyGenWg.Done()
-		defer tKeyGen.logger.Debug().Msg("keyGenParty started")
+		defer tKeyGen.logger.Debug().Msg(">>>>>>>>>>>>>.keyGenParty started")
 		if err := keyGenParty.Start(); nil != err {
 			tKeyGen.logger.Error().Err(err).Msg("fail to start keygen party")
 			close(errChan)
@@ -173,7 +175,9 @@ func (tKeyGen *TssKeyGen) processKeyGen(errChan chan struct{},
 			if err != nil {
 				tKeyGen.logger.Error().Err(err).Msg("error in get unicast blame")
 			}
+			tKeyGen.tssCommonStruct.P2PPeersLock.RLock()
 			threshold, err := conversion.GetThreshold(len(tKeyGen.tssCommonStruct.P2PPeers) + 1)
+			tKeyGen.tssCommonStruct.P2PPeersLock.RUnlock()
 			if err != nil {
 				tKeyGen.logger.Error().Err(err).Msg("error in get the threshold to generate blame")
 			}

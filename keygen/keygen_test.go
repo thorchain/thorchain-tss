@@ -14,6 +14,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ipfs/go-log"
+
 	"github.com/binance-chain/tss-lib/crypto"
 	"github.com/libp2p/go-libp2p-core/peer"
 	tcrypto "github.com/tendermint/tendermint/crypto"
@@ -162,13 +164,14 @@ func getPreparams(c *C) []*btsskeygen.LocalPreParams {
 }
 
 func (s *TssKeygenTestSuite) TestGenerateNewKey(c *C) {
+	log.SetLogLevel("tss-lib", "info")
 	sort.Strings(testPubKeys)
 	req := NewRequest(testPubKeys, 10, "")
 	messageID, err := common.MsgToHashString([]byte(strings.Join(req.Keys, "")))
 	c.Assert(err, IsNil)
 	conf := common.TssConfig{
-		KeyGenTimeout:   60 * time.Second,
-		KeySignTimeout:  60 * time.Second,
+		KeyGenTimeout:   120 * time.Second,
+		KeySignTimeout:  120 * time.Second,
 		PreParamTimeout: 5 * time.Second,
 	}
 	wg := sync.WaitGroup{}
@@ -215,13 +218,9 @@ func (s *TssKeygenTestSuite) TestGenerateNewKey(c *C) {
 }
 
 func (s *TssKeygenTestSuite) TestGenerateNewKeyWithStop(c *C) {
-	sort.Strings(testPubKeys)
-	req := NewRequest(testPubKeys, 10, "")
-	messageID, err := common.MsgToHashString([]byte(strings.Join(req.Keys, "")))
-	c.Assert(err, IsNil)
 	conf := common.TssConfig{
-		KeyGenTimeout:   10 * time.Second,
-		KeySignTimeout:  10 * time.Second,
+		KeyGenTimeout:   20 * time.Second,
+		KeySignTimeout:  20 * time.Second,
 		PreParamTimeout: 5 * time.Second,
 	}
 	wg := sync.WaitGroup{}
@@ -230,6 +229,12 @@ func (s *TssKeygenTestSuite) TestGenerateNewKeyWithStop(c *C) {
 		wg.Add(1)
 		go func(idx int) {
 			defer wg.Done()
+			var localpubKey []string
+			localpubKey = append(localpubKey, testPubKeys...)
+			sort.Strings(testPubKeys)
+			req := NewRequest(localpubKey, 10, "")
+			messageID, err := common.MsgToHashString([]byte(strings.Join(req.Keys, "")))
+			c.Assert(err, IsNil)
 			comm := s.comms[idx]
 			stopChan := make(chan struct{})
 			localPubKey := testPubKeys[idx]
@@ -253,19 +258,19 @@ func (s *TssKeygenTestSuite) TestGenerateNewKeyWithStop(c *C) {
 			defer comm.CancelSubscribe(messages.TSSKeyGenVerMsg, messageID)
 			defer comm.CancelSubscribe(messages.TSSControlMsg, messageID)
 			defer comm.CancelSubscribe(messages.TSSTaskDone, messageID)
-			if idx == 1 {
+			if idx == 0 {
 				go func() {
-					time.Sleep(time.Millisecond * 200)
+					time.Sleep(time.Millisecond * 2000)
 					close(keygenInstance.stopChan)
 				}()
 			}
-			_, err := keygenInstance.GenerateNewKey(req)
+			_, err = keygenInstance.GenerateNewKey(req)
 			c.Assert(err, NotNil)
 			// we skip the node 1 as we force it to stop
-			if idx != 1 {
+			if idx != 0 {
 				blames := keygenInstance.GetTssCommonStruct().GetBlameMgr().GetBlame().BlameNodes
 				c.Assert(blames, HasLen, 1)
-				c.Assert(blames[0].Pubkey, Equals, testPubKeys[1])
+				c.Assert(blames[0].Pubkey, Equals, testPubKeys[0])
 			}
 		}(i)
 	}

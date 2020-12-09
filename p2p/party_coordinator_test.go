@@ -103,6 +103,8 @@ func TestPartyCoordinatorTimeOut(t *testing.T) {
 
 	msgID := conversion.RandStringBytesMask(64)
 	wg := sync.WaitGroup{}
+	expected := peers[:2]
+	sort.Strings(expected)
 
 	for _, el := range pcs[:2] {
 		wg.Add(1)
@@ -115,8 +117,6 @@ func TestPartyCoordinatorTimeOut(t *testing.T) {
 				onlinePeersStr = append(onlinePeersStr, el.String())
 			}
 			sort.Strings(onlinePeersStr)
-			expected := peers[:2]
-			sort.Strings(expected)
 			assert.EqualValues(t, onlinePeersStr, expected)
 		}(el)
 	}

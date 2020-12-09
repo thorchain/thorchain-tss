@@ -10,30 +10,33 @@ import (
 )
 
 type Manager struct {
-	logger          zerolog.Logger
-	blame           *Blame
-	lastUnicastPeer map[string][]peer.ID
-	shareMgr        *ShareMgr
-	roundMgr        *RoundMgr
-	partyInfo       *PartyInfo
-	PartyIDtoP2PID  map[string]peer.ID
-	lastMsgLocker   *sync.RWMutex
-	lastMsg         btss.Message
-	acceptedShares  map[RoundInfo][]string
-	localPartyID    string
+	logger            zerolog.Logger
+	blame             *Blame
+	lastUnicastPeer   map[string][]peer.ID
+	shareMgr          *ShareMgr
+	roundMgr          *RoundMgr
+	partyInfo         *PartyInfo
+	PartyIDtoP2PID    map[string]peer.ID
+	lastMsgLocker     *sync.RWMutex
+	lastMsg           btss.Message
+	acceptedShares    map[RoundInfo][]string
+	acceptShareLocker *sync.Mutex
+	localPartyID      string
 }
 
 func NewBlameManager() *Manager {
+	blame := NewBlame("", nil)
 	return &Manager{
-		logger:          log.With().Str("module", "blame_manager").Logger(),
-		partyInfo:       nil,
-		PartyIDtoP2PID:  make(map[string]peer.ID),
-		lastUnicastPeer: make(map[string][]peer.ID),
-		shareMgr:        NewTssShareMgr(),
-		roundMgr:        NewTssRoundMgr(),
-		blame:           &Blame{},
-		lastMsgLocker:   &sync.RWMutex{},
-		acceptedShares:  make(map[RoundInfo][]string),
+		logger:            log.With().Str("module", "blame_manager").Logger(),
+		partyInfo:         nil,
+		PartyIDtoP2PID:    make(map[string]peer.ID),
+		lastUnicastPeer:   make(map[string][]peer.ID),
+		shareMgr:          NewTssShareMgr(),
+		roundMgr:          NewTssRoundMgr(),
+		blame:             &blame,
+		lastMsgLocker:     &sync.RWMutex{},
+		acceptedShares:    make(map[RoundInfo][]string),
+		acceptShareLocker: &sync.Mutex{},
 	}
 }
 
@@ -49,8 +52,31 @@ func (m *Manager) GetRoundMgr() *RoundMgr {
 	return m.roundMgr
 }
 
-func (m *Manager) GetAcceptShares() map[RoundInfo][]string {
-	return m.acceptedShares
+func (m *Manager) UpdateAcceptShare(round RoundInfo, id string) {
+	m.acceptShareLocker.Lock()
+	defer m.acceptShareLocker.Unlock()
+	partyList, ok := m.acceptedShares[round]
+	if !ok {
+		partyList := []string{id}
+		m.acceptedShares[round] = partyList
+		return
+	}
+	partyList = append(partyList, id)
+	m.acceptedShares[round] = partyList
+}
+
+func (m *Manager) CheckMsgDuplication(round RoundInfo, id string) bool {
+	m.acceptShareLocker.Lock()
+	defer m.acceptShareLocker.Unlock()
+	partyList, ok := m.acceptedShares[round]
+	if ok {
+		for _, el := range partyList {
+			if el == id {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func (m *Manager) SetLastMsg(lastMsg btss.Message) {
@@ -80,6 +106,8 @@ func (m *Manager) SetPartyInfo(partyMap *sync.Map, partyIDMap map[string]*btss.P
 }
 
 func (m *Manager) SetLastUnicastPeer(peerID peer.ID, roundInfo string) {
+	m.lastMsgLocker.Lock()
+	defer m.lastMsgLocker.Unlock()
 	l, ok := m.lastUnicastPeer[roundInfo]
 	if !ok {
 		peerList := []peer.ID{peerID}

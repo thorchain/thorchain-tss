@@ -38,6 +38,7 @@ type TssCommon struct {
 	localPeerID                 string
 	broadcastChannel            chan *messages.BroadcastMsgChan
 	TssMsg                      chan *p2p.Message
+	P2PPeersLock                *sync.RWMutex
 	P2PPeers                    []peer.ID // most of tss message are broadcast, we store the peers ID to avoid iterating
 	msgID                       string
 	privateKey                  tcrypto.PrivKey
@@ -45,10 +46,10 @@ type TssCommon struct {
 	blameMgr                    *blame.Manager
 	finishedPeers               map[string]bool
 	culprits                    []*btss.PartyID
+	culpritsLock                *sync.RWMutex
 	cachedWireBroadcastMsgLists *sync.Map
 	cachedWireUnicastMsgLists   *sync.Map
 	msgNum                      int
-	updateLock                  *sync.RWMutex
 }
 
 func NewTssCommon(peerID string, broadcastChannel chan *messages.BroadcastMsgChan, conf TssConfig, msgID string, privKey tcrypto.PrivKey, msgNum int) *TssCommon {
@@ -62,6 +63,7 @@ func NewTssCommon(peerID string, broadcastChannel chan *messages.BroadcastMsgCha
 		unConfirmedMessages:         make(map[string]*LocalCacheItem),
 		broadcastChannel:            broadcastChannel,
 		TssMsg:                      make(chan *p2p.Message, msgNum),
+		P2PPeersLock:                &sync.RWMutex{},
 		P2PPeers:                    nil,
 		msgID:                       msgID,
 		localPeerID:                 peerID,
@@ -69,11 +71,10 @@ func NewTssCommon(peerID string, broadcastChannel chan *messages.BroadcastMsgCha
 		taskDone:                    make(chan struct{}),
 		blameMgr:                    blame.NewBlameManager(),
 		finishedPeers:               make(map[string]bool),
-		culprits:                    []*btss.PartyID{},
+		culpritsLock:                &sync.RWMutex{},
 		cachedWireBroadcastMsgLists: &sync.Map{},
 		cachedWireUnicastMsgLists:   &sync.Map{},
 		msgNum:                      msgNum,
-		updateLock:                  &sync.RWMutex{},
 	}
 }
 
@@ -100,21 +101,19 @@ type tssJob struct {
 	acceptedShares map[blame.RoundInfo][]string
 }
 
-func newJob(party btss.Party, wireBytes []byte, msgIdentifier string, from *btss.PartyID, acceptedShares map[blame.RoundInfo][]string, isBroadcast bool) *tssJob {
+func newJob(party btss.Party, wireBytes []byte, msgIdentifier string, from *btss.PartyID, isBroadcast bool) *tssJob {
 	return &tssJob{
-		wireBytes:      wireBytes,
-		msgIdentifier:  msgIdentifier,
-		partyID:        from,
-		isBroadcast:    isBroadcast,
-		localParty:     party,
-		acceptedShares: acceptedShares,
+		wireBytes:     wireBytes,
+		msgIdentifier: msgIdentifier,
+		partyID:       from,
+		isBroadcast:   isBroadcast,
+		localParty:    party,
 	}
 }
 
-func (t *TssCommon) doTssJob(tssJobChan chan *tssJob, dones chan<- struct{}) {
+func (t *TssCommon) doTssJob(tssJobChan chan *tssJob, jobWg *sync.WaitGroup) {
 	defer func() {
-		dones <- struct {
-		}{}
+		jobWg.Done()
 	}()
 
 	for tssjob := range tssJobChan {
@@ -122,7 +121,6 @@ func (t *TssCommon) doTssJob(tssJobChan chan *tssJob, dones chan<- struct{}) {
 		wireBytes := tssjob.wireBytes
 		partyID := tssjob.partyID
 		isBroadcast := tssjob.isBroadcast
-		acceptedShares := tssjob.acceptedShares
 
 		round, err := GetMsgRound(wireBytes, partyID, isBroadcast)
 		if err != nil {
@@ -138,17 +136,7 @@ func (t *TssCommon) doTssJob(tssJobChan chan *tssJob, dones chan<- struct{}) {
 			continue
 		}
 		// we need to retrieve the partylist again as others may update it once we process apply tss share
-		t.updateLock.Lock()
-		partyList, ok := acceptedShares[round]
-		if !ok {
-			partyList := []string{partyID.Id}
-			acceptedShares[round] = partyList
-			t.updateLock.Unlock()
-			continue
-		}
-		partyList = append(partyList, partyID.Id)
-		acceptedShares[round] = partyList
-		t.updateLock.Unlock()
+		t.blameMgr.UpdateAcceptShare(round, partyID.Id)
 	}
 }
 
@@ -198,7 +186,9 @@ func (t *TssCommon) processInvalidMsgBlame(roundInfo string, round blame.RoundIn
 	var culpritsID []string
 	var invalidMsgs []*messages.WireMessage
 	unicast := checkUnicast(round)
+	t.culpritsLock.Lock()
 	t.culprits = append(t.culprits, err.Culprits()...)
+	t.culpritsLock.Unlock()
 	for _, el := range err.Culprits() {
 		culpritsID = append(culpritsID, el.Id)
 		key := fmt.Sprintf("%s-%s", el.Id, roundInfo)
@@ -262,14 +252,13 @@ func (t *TssCommon) updateLocal(wireMsg *messages.WireMessage) error {
 		t.logger.Error().Err(err).Msg("error to unmarshal the BulkMsg")
 		return err
 	}
-	acceptedShares := t.blameMgr.GetAcceptShares()
 
 	worker := runtime.NumCPU()
-	working := worker
-	dones := make(chan struct{}, worker)
 	tssJobChan := make(chan *tssJob, len(bulkMsg))
+	jobWg := sync.WaitGroup{}
 	for i := 0; i < worker; i++ {
-		go t.doTssJob(tssJobChan, dones)
+		jobWg.Add(1)
+		go t.doTssJob(tssJobChan, &jobWg)
 	}
 	for _, msg := range bulkMsg {
 		data, ok := partyInfo.PartyMap.Load(msg.MsgIdentifier)
@@ -293,21 +282,9 @@ func (t *TssCommon) updateLocal(wireMsg *messages.WireMessage) error {
 		// we only allow a message be updated only once.
 		// here we use round + msgIdentifier as the key for the acceptedShares
 		round.MsgIdentifier = msg.MsgIdentifier
-		t.updateLock.Lock()
-		partyList, ok := acceptedShares[round]
-		duplicated := false
-		if ok {
-			for _, el := range partyList {
-				if el == partyID.Id {
-					t.logger.Debug().Msgf("we received the duplicated message from party %s", partyID.Id)
-					duplicated = true
-					break
-				}
-			}
-		}
-		t.updateLock.Unlock()
 		// if this share is duplicated, we skip this share
-		if duplicated {
+		if t.blameMgr.CheckMsgDuplication(round, partyID.Id) {
+			t.logger.Debug().Msgf("we received the duplicated message from party %s", partyID.Id)
 			continue
 		}
 
@@ -319,26 +296,18 @@ func (t *TssCommon) updateLocal(wireMsg *messages.WireMessage) error {
 			}
 			return false
 		}
-
+		t.culpritsLock.RLock()
 		if len(t.culprits) != 0 && partyInlist(partyID, t.culprits) {
 			t.logger.Error().Msgf("the malicious party (party ID:%s) try to send incorrect message to me (party ID:%s)", partyID.Id, localMsgParty.PartyID().Id)
+			t.culpritsLock.RUnlock()
 			return errors.New(blame.TssBrokenMsg)
 		}
-		job := newJob(localMsgParty, msg.WiredBulkMsgs, round.MsgIdentifier, partyID, acceptedShares, msg.Routing.IsBroadcast)
+		t.culpritsLock.RUnlock()
+		job := newJob(localMsgParty, msg.WiredBulkMsgs, round.MsgIdentifier, partyID, msg.Routing.IsBroadcast)
 		tssJobChan <- job
 	}
 	close(tssJobChan)
-	done := false
-	for {
-		<-dones
-		working -= 1
-		if working <= 0 {
-			done = true
-		}
-		if done {
-			break
-		}
-	}
+	jobWg.Wait()
 	return nil
 }
 
@@ -508,7 +477,9 @@ func (t *TssCommon) sendBulkMsg(wiredMsgType string, tssMsgType messages.THORCha
 
 	peerIDs := make([]peer.ID, 0)
 	if len(r.To) == 0 {
+		t.P2PPeersLock.RLock()
 		peerIDs = t.P2PPeers
+		t.P2PPeersLock.RUnlock()
 	} else {
 		for _, each := range r.To {
 			peerID, ok := t.PartyIDtoP2PID[each.Id]
@@ -737,12 +708,14 @@ func (t *TssCommon) receiverBroadcastHashToPeers(wireMsg *messages.WireMessage, 
 	if !ok {
 		return errors.New("error in find the data owner peerID")
 	}
+	t.P2PPeersLock.RLock()
 	for _, el := range t.P2PPeers {
 		if el == dataOwnerPeerID {
 			continue
 		}
 		peerIDs = append(peerIDs, el)
 	}
+	t.P2PPeersLock.RUnlock()
 	msgVerType := getBroadcastMessageType(msgType)
 	key := wireMsg.GetCacheKey()
 	msgHash, err := conversion.BytesToHashString(wireMsg.Message)

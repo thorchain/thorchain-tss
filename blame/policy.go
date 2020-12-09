@@ -46,9 +46,7 @@ func (m *Manager) tssTimeoutBlame(lastMessageType string, partyIDMap map[string]
 
 // this blame blames the node who cause the timeout in node sync
 func (m *Manager) NodeSyncBlame(keys []string, onlinePeers []peer.ID) (Blame, error) {
-	blame := Blame{
-		FailReason: TssSyncFail,
-	}
+	blame := NewBlame(TssSyncFail, nil)
 	for _, item := range keys {
 		found := false
 		peerID, err := conversion.GetPeerIDFromPubKey(item)
@@ -70,12 +68,15 @@ func (m *Manager) NodeSyncBlame(keys []string, onlinePeers []peer.ID) (Blame, er
 
 // this blame blames the node who cause the timeout in unicast message
 func (m *Manager) GetUnicastBlame(lastMsgType string) ([]Node, error) {
+	m.lastMsgLocker.RLock()
 	if len(m.lastUnicastPeer) == 0 {
+		m.lastMsgLocker.RUnlock()
 		m.logger.Debug().Msg("we do not have any unicast message received yet")
 		return nil, nil
 	}
 	peersMap := make(map[string]bool)
 	peersID, ok := m.lastUnicastPeer[lastMsgType]
+	m.lastMsgLocker.RUnlock()
 	if !ok {
 		return nil, fmt.Errorf("fail to find peers of the given msg type %w", ErrTssTimeOut)
 	}
@@ -136,7 +137,7 @@ func (m *Manager) TssMissingShareBlame(rounds int) ([]Node, bool, error) {
 	var blameNodes []Node
 	var peers []string
 	isUnicast := false
-
+	m.acceptShareLocker.Lock()
 	for roundInfo, value := range m.acceptedShares {
 		cachedShares, ok := acceptedShareForMsg[roundInfo.MsgIdentifier]
 		if !ok {
@@ -147,6 +148,7 @@ func (m *Manager) TssMissingShareBlame(rounds int) ([]Node, bool, error) {
 		}
 		cachedShares[roundInfo.Index] = value
 	}
+	m.acceptShareLocker.Unlock()
 
 	for _, cachedShares := range acceptedShareForMsg {
 		// we search from the first round to find the missing

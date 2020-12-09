@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/binance-chain/tss-lib/ecdsa/signing"
+	tsslibcommon "github.com/binance-chain/tss-lib/common"
 	"github.com/libp2p/go-libp2p-core/peer"
 
 	"gitlab.com/thorchain/tss/go-tss/blame"
@@ -22,21 +22,6 @@ import (
 )
 
 func (t *TssServer) waitForSignatures(msgID, poolPubKey string, msgsToSign [][]byte, sigChan chan string) (keysign.Response, error) {
-	sort.SliceStable(msgsToSign, func(i, j int) bool {
-		ma, err := common.MsgToHashInt(msgsToSign[i])
-		if err != nil {
-			t.logger.Error().Err(err).Msgf("fail to convert the hash value")
-		}
-		mb, err := common.MsgToHashInt(msgsToSign[j])
-		if err != nil {
-			t.logger.Error().Err(err).Msgf("fail to convert the hash value")
-		}
-		if ma.Cmp(mb) == -1 {
-			return false
-		}
-		return true
-	})
-
 	// TSS keysign include both form party and keysign itself, thus we wait twice of the timeout
 	data, err := t.signatureNotifier.WaitForSignature(msgID, msgsToSign, poolPubKey, t.conf.KeySignTimeout, sigChan)
 	if err != nil {
@@ -47,7 +32,7 @@ func (t *TssServer) waitForSignatures(msgID, poolPubKey string, msgsToSign [][]b
 		return keysign.Response{}, errors.New("keysign failed")
 	}
 
-	return t.batchSignatures(data), nil
+	return t.batchSignatures(data, msgsToSign), nil
 }
 
 func (t *TssServer) generateSignature(msgID string, msgsToSign [][]byte, req keysign.Request, threshold int, allParticipants []string, localStateItem storage.KeygenLocalState, blameMgr *blame.Manager, keysignInstance *keysign.TssKeySign, sigChan chan string) (keysign.Response, error) {
@@ -185,7 +170,7 @@ func (t *TssServer) generateSignature(msgID string, msgsToSign [][]byte, req key
 		return keysign.Response{}, fmt.Errorf("fail to broadcast signature:%w", err)
 	}
 
-	return t.batchSignatures(signatureData), nil
+	return t.batchSignatures(signatureData, msgsToSign), nil
 }
 
 func (t *TssServer) updateKeySignResult(result keysign.Response, timeSpent time.Duration) {
@@ -250,6 +235,21 @@ func (t *TssServer) KeySign(req keysign.Request) (keysign.Response, error) {
 		}
 		msgsToSign = append(msgsToSign, msgToSign)
 	}
+
+	sort.SliceStable(msgsToSign, func(i, j int) bool {
+		ma, err := common.MsgToHashInt(msgsToSign[i])
+		if err != nil {
+			t.logger.Error().Err(err).Msgf("fail to convert the hash value")
+		}
+		mb, err := common.MsgToHashInt(msgsToSign[j])
+		if err != nil {
+			t.logger.Error().Err(err).Msgf("fail to convert the hash value")
+		}
+		if ma.Cmp(mb) == -1 {
+			return false
+		}
+		return true
+	})
 
 	oldJoinParty, err := conversion.VersionLTCheck(req.Version, messages.NEWJOINPARTYVERSION)
 	if err != nil {
@@ -332,13 +332,15 @@ func (t *TssServer) isPartOfKeysignParty(parties []string) bool {
 	return false
 }
 
-func (t *TssServer) batchSignatures(sigs []*signing.SignatureData) keysign.Response {
+func (t *TssServer) batchSignatures(sigs []*tsslibcommon.ECSignature, msgsToSign [][]byte) keysign.Response {
 	var signatures []keysign.Signature
-	for _, sig := range sigs {
-		msg := base64.StdEncoding.EncodeToString(sig.GetSignature().M)
-		r := base64.StdEncoding.EncodeToString(sig.GetSignature().R)
-		s := base64.StdEncoding.EncodeToString(sig.GetSignature().S)
-		signature := keysign.NewSignature(msg, r, s)
+	for i, sig := range sigs {
+		msg := base64.StdEncoding.EncodeToString(msgsToSign[i])
+		r := base64.StdEncoding.EncodeToString(sig.R)
+		s := base64.StdEncoding.EncodeToString(sig.S)
+		recovery := base64.StdEncoding.EncodeToString(sig.SignatureRecovery)
+
+		signature := keysign.NewSignature(msg, r, s, recovery)
 		signatures = append(signatures, signature)
 	}
 	return keysign.NewResponse(

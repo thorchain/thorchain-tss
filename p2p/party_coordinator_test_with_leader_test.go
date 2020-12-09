@@ -16,6 +16,10 @@ import (
 	"gitlab.com/thorchain/tss/go-tss/conversion"
 )
 
+func init() {
+	ApplyDeadline = false
+}
+
 func setupHosts(t *testing.T, n int) []host.Host {
 	mn := mocknet.New(context.Background())
 	var hosts []host.Host
@@ -98,7 +102,6 @@ func leaderAppersFirstTest(t *testing.T, msgID string, peers []string, pcs []*Pa
 }
 
 func TestNewPartyCoordinator(t *testing.T) {
-	ApplyDeadline = false
 	hosts := setupHosts(t, 4)
 	var pcs []*PartyCoordinator
 	var peers []string
@@ -138,7 +141,6 @@ func TestNewPartyCoordinator(t *testing.T) {
 }
 
 func TestNewPartyCoordinatorTimeOut(t *testing.T) {
-	ApplyDeadline = false
 	timeout := time.Second * 3
 	hosts := setupHosts(t, 4)
 	var pcs []*PartyCoordinator
@@ -214,7 +216,6 @@ func TestNewPartyCoordinatorTimeOut(t *testing.T) {
 }
 
 func TestGetPeerIDs(t *testing.T) {
-	ApplyDeadline = false
 	id1 := tnet.RandIdentityOrFatal(t)
 	mn := mocknet.New(context.Background())
 	// add peers to mock net

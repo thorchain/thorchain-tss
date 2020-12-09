@@ -15,7 +15,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/binance-chain/tss-lib/ecdsa/signing"
+	tsslibcommon "github.com/binance-chain/tss-lib/common"
 	btss "github.com/binance-chain/tss-lib/tss"
 	"github.com/ipfs/go-log"
 	"github.com/libp2p/go-libp2p-peerstore/addr"
@@ -176,7 +176,7 @@ func (s *TssKeysignTestSuite) TestSignMessage(c *C) {
 	c.Assert(err, IsNil)
 	wg := sync.WaitGroup{}
 	lock := &sync.Mutex{}
-	keysignResult := make(map[int][]*signing.SignatureData)
+	keysignResult := make(map[int][]*tsslibcommon.ECSignature)
 	conf := common.TssConfig{
 		KeyGenTimeout:   90 * time.Second,
 		KeySignTimeout:  90 * time.Second,
@@ -223,13 +223,13 @@ func (s *TssKeysignTestSuite) TestSignMessage(c *C) {
 	for _, item := range keysignResult {
 		if len(signatures) == 0 {
 			for _, each := range item {
-				signatures = append(signatures, string(each.Signature.GetSignature()))
+				signatures = append(signatures, string(each.GetSignature()))
 			}
 			continue
 		}
 		var targetSignatures []string
 		for _, each := range item {
-			targetSignatures = append(targetSignatures, string(each.Signature.GetSignature()))
+			targetSignatures = append(targetSignatures, string(each.GetSignature()))
 		}
 
 		c.Assert(signatures, DeepEquals, targetSignatures)
@@ -276,7 +276,7 @@ func (s *TssKeysignTestSuite) TestSignMessageWithStop(c *C) {
 	wg := sync.WaitGroup{}
 	conf := common.TssConfig{
 		KeyGenTimeout:   10 * time.Second,
-		KeySignTimeout:  10 * time.Second,
+		KeySignTimeout:  20 * time.Second,
 		PreParamTimeout: 5 * time.Second,
 	}
 
@@ -314,6 +314,8 @@ func (s *TssKeysignTestSuite) TestSignMessageWithStop(c *C) {
 
 			_, err = keysignIns.SignMessage(msgsToSign, localState, req.SignerPubKeys)
 			c.Assert(err, NotNil)
+			lastMsg := keysignIns.tssCommonStruct.GetBlameMgr().GetLastMsg()
+			zlog.Info().Msgf("%s------->last message %v, broadcast? %v", keysignIns.tssCommonStruct.GetLocalPeerID(), lastMsg.Type(), lastMsg.IsBroadcast())
 			// we skip the node 1 as we force it to stop
 			if idx != 1 {
 				blames := keysignIns.GetTssCommonStruct().GetBlameMgr().GetBlame().BlameNodes
@@ -340,11 +342,13 @@ func rejectSendToOnePeer(c *C, tssKeySign *TssKeySign, stopChan chan struct{}, t
 				roundD, err := strconv.Atoi(round)
 				c.Assert(err, IsNil)
 				if roundD > 6 {
+					tssKeySign.tssCommonStruct.P2PPeersLock.Lock()
 					peersID := tssKeySign.tssCommonStruct.P2PPeers
 					sort.Slice(peersID, func(i, j int) bool {
 						return peersID[i].String() > peersID[j].String()
 					})
 					tssKeySign.tssCommonStruct.P2PPeers = targetPeers
+					tssKeySign.tssCommonStruct.P2PPeersLock.Unlock()
 					return
 				}
 			}

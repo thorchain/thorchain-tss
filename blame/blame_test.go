@@ -18,7 +18,7 @@ func createNewNode(key string) Node {
 
 func (BlameTestSuite) TestBlame(c *C) {
 	b := NewBlame("whatever", []Node{createNewNode("1"), createNewNode("2")})
-	c.Assert(b.IsEmpty(), Equals, false)
+	c.Assert(b.FailReason, HasLen, 8)
 	c.Logf("%s", b)
 	b.AddBlameNodes(createNewNode("3"), createNewNode("4"))
 	c.Assert(b.BlameNodes, HasLen, 4)
