@@ -52,12 +52,31 @@ func (m *Manager) GetRoundMgr() *RoundMgr {
 	return m.roundMgr
 }
 
-func (m *Manager) GetAcceptShares() map[RoundInfo][]string {
-	return m.acceptedShares
+func (m *Manager) UpdateAcceptShare(round RoundInfo, id string) {
+	m.acceptShareLocker.Lock()
+	defer m.acceptShareLocker.Unlock()
+	partyList, ok := m.acceptedShares[round]
+	if !ok {
+		partyList := []string{id}
+		m.acceptedShares[round] = partyList
+		return
+	}
+	partyList = append(partyList, id)
+	m.acceptedShares[round] = partyList
 }
 
-func (m *Manager) GetAcceptShareLock() *sync.Mutex {
-	return m.acceptShareLocker
+func (m *Manager) CheckMsgDuplication(round RoundInfo, id string) bool {
+	m.acceptShareLocker.Lock()
+	defer m.acceptShareLocker.Unlock()
+	partyList, ok := m.acceptedShares[round]
+	if ok {
+		for _, el := range partyList {
+			if el == id {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func (m *Manager) SetLastMsg(lastMsg btss.Message) {
@@ -87,6 +106,8 @@ func (m *Manager) SetPartyInfo(partyMap *sync.Map, partyIDMap map[string]*btss.P
 }
 
 func (m *Manager) SetLastUnicastPeer(peerID peer.ID, roundInfo string) {
+	m.lastMsgLocker.Lock()
+	defer m.lastMsgLocker.Unlock()
 	l, ok := m.lastUnicastPeer[roundInfo]
 	if !ok {
 		peerList := []peer.ID{peerID}

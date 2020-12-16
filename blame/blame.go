@@ -32,17 +32,8 @@ func NewBlame(reason string, blameNodes []Node) Blame {
 	}
 }
 
-// IsEmpty check whether it is empty
-func (b *Blame) IsEmpty() bool {
-	b.blameLock.RLock()
-	defer b.blameLock.RUnlock()
-	return len(b.FailReason) == 0
-}
-
 // String implement fmt.Stringer
 func (b Blame) String() string {
-	b.blameLock.RLock()
-	defer b.blameLock.RUnlock()
 	sb := strings.Builder{}
 	sb.WriteString("reason:" + b.FailReason + " is_unicast:" + strconv.FormatBool(b.IsUnicast) + "\n")
 	sb.WriteString(fmt.Sprintf("nodes:%+v\n", b.BlameNodes))

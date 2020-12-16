@@ -68,12 +68,15 @@ func (m *Manager) NodeSyncBlame(keys []string, onlinePeers []peer.ID) (Blame, er
 
 // this blame blames the node who cause the timeout in unicast message
 func (m *Manager) GetUnicastBlame(lastMsgType string) ([]Node, error) {
+	m.lastMsgLocker.RLock()
 	if len(m.lastUnicastPeer) == 0 {
+		m.lastMsgLocker.RUnlock()
 		m.logger.Debug().Msg("we do not have any unicast message received yet")
 		return nil, nil
 	}
 	peersMap := make(map[string]bool)
 	peersID, ok := m.lastUnicastPeer[lastMsgType]
+	m.lastMsgLocker.RUnlock()
 	if !ok {
 		return nil, fmt.Errorf("fail to find peers of the given msg type %w", ErrTssTimeOut)
 	}

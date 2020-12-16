@@ -14,6 +14,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ipfs/go-log"
+
 	"github.com/binance-chain/tss-lib/crypto"
 	"github.com/libp2p/go-libp2p-core/peer"
 	tcrypto "github.com/tendermint/tendermint/crypto"
@@ -163,13 +165,14 @@ func getPreparams(c *C) []*btsskeygen.LocalPreParams {
 }
 
 func (s *TssKeygenTestSuite) TestGenerateNewKey(c *C) {
+	log.SetLogLevel("tss-lib", "info")
 	sort.Strings(testPubKeys)
 	req := NewRequest(testPubKeys, 10, "")
 	messageID, err := common.MsgToHashString([]byte(strings.Join(req.Keys, "")))
 	c.Assert(err, IsNil)
 	conf := common.TssConfig{
-		KeyGenTimeout:   60 * time.Second,
-		KeySignTimeout:  60 * time.Second,
+		KeyGenTimeout:   120 * time.Second,
+		KeySignTimeout:  120 * time.Second,
 		PreParamTimeout: 5 * time.Second,
 	}
 	wg := sync.WaitGroup{}

@@ -101,14 +101,13 @@ type tssJob struct {
 	acceptedShares map[blame.RoundInfo][]string
 }
 
-func newJob(party btss.Party, wireBytes []byte, msgIdentifier string, from *btss.PartyID, acceptedShares map[blame.RoundInfo][]string, isBroadcast bool) *tssJob {
+func newJob(party btss.Party, wireBytes []byte, msgIdentifier string, from *btss.PartyID, isBroadcast bool) *tssJob {
 	return &tssJob{
-		wireBytes:      wireBytes,
-		msgIdentifier:  msgIdentifier,
-		partyID:        from,
-		isBroadcast:    isBroadcast,
-		localParty:     party,
-		acceptedShares: acceptedShares,
+		wireBytes:     wireBytes,
+		msgIdentifier: msgIdentifier,
+		partyID:       from,
+		isBroadcast:   isBroadcast,
+		localParty:    party,
 	}
 }
 
@@ -123,7 +122,6 @@ func (t *TssCommon) doTssJob(tssJobChan chan *tssJob, dones chan<- struct{}) {
 		wireBytes := tssjob.wireBytes
 		partyID := tssjob.partyID
 		isBroadcast := tssjob.isBroadcast
-		acceptedShares := tssjob.acceptedShares
 
 		round, err := GetMsgRound(wireBytes, partyID, isBroadcast)
 		if err != nil {
@@ -139,18 +137,7 @@ func (t *TssCommon) doTssJob(tssJobChan chan *tssJob, dones chan<- struct{}) {
 			continue
 		}
 		// we need to retrieve the partylist again as others may update it once we process apply tss share
-		t.blameMgr.GetAcceptShareLock().Lock()
-		t.blameMgr.GetAcceptShares()
-		partyList, ok := acceptedShares[round]
-		if !ok {
-			partyList := []string{partyID.Id}
-			acceptedShares[round] = partyList
-			t.blameMgr.GetAcceptShareLock().Unlock()
-			continue
-		}
-		partyList = append(partyList, partyID.Id)
-		acceptedShares[round] = partyList
-		t.blameMgr.GetAcceptShareLock().Unlock()
+		t.blameMgr.UpdateAcceptShare(round, partyID.Id)
 	}
 }
 
@@ -296,21 +283,9 @@ func (t *TssCommon) updateLocal(wireMsg *messages.WireMessage) error {
 		// we only allow a message be updated only once.
 		// here we use round + msgIdentifier as the key for the acceptedShares
 		round.MsgIdentifier = msg.MsgIdentifier
-		t.blameMgr.GetAcceptShareLock().Lock()
-		partyList, ok := t.blameMgr.GetAcceptShares()[round]
-		duplicated := false
-		if ok {
-			for _, el := range partyList {
-				if el == partyID.Id {
-					t.logger.Debug().Msgf("we received the duplicated message from party %s", partyID.Id)
-					duplicated = true
-					break
-				}
-			}
-		}
-		t.blameMgr.GetAcceptShareLock().Unlock()
 		// if this share is duplicated, we skip this share
-		if duplicated {
+		if t.blameMgr.CheckMsgDuplication(round, partyID.Id) {
+			t.logger.Debug().Msgf("we received the duplicated message from party %s", partyID.Id)
 			continue
 		}
 
@@ -329,7 +304,7 @@ func (t *TssCommon) updateLocal(wireMsg *messages.WireMessage) error {
 			return errors.New(blame.TssBrokenMsg)
 		}
 		t.culpritsLock.RUnlock()
-		job := newJob(localMsgParty, msg.WiredBulkMsgs, round.MsgIdentifier, partyID, t.GetBlameMgr().GetAcceptShares(), msg.Routing.IsBroadcast)
+		job := newJob(localMsgParty, msg.WiredBulkMsgs, round.MsgIdentifier, partyID, msg.Routing.IsBroadcast)
 		tssJobChan <- job
 	}
 	close(tssJobChan)

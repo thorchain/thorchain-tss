@@ -123,7 +123,7 @@ func (p *policyTestSuite) TestTssMissingShareBlame(c *C) {
 	localTestPubKeys := testPubKeys[:]
 	sort.Strings(localTestPubKeys)
 	blameMgr := p.blameMgr
-	acceptedShares := blameMgr.GetAcceptShares()
+	acceptedShares := blameMgr.acceptedShares
 	// we only allow a message be updated only once.
 	blameMgr.acceptShareLocker.Lock()
 	acceptedShares[RoundInfo{0, "testRound", "123:0"}] = []string{"1", "2"}

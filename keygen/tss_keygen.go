@@ -117,7 +117,7 @@ func (tKeyGen *TssKeyGen) GenerateNewKey(keygenReq Request) (*bcrypto.ECPoint, e
 	// start keygen
 	go func() {
 		defer keyGenWg.Done()
-		defer tKeyGen.logger.Debug().Msg("keyGenParty started")
+		defer tKeyGen.logger.Debug().Msg(">>>>>>>>>>>>>.keyGenParty started")
 		if err := keyGenParty.Start(); nil != err {
 			tKeyGen.logger.Error().Err(err).Msg("fail to start keygen party")
 			close(errChan)
