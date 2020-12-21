@@ -7,6 +7,7 @@ import (
 	"fmt"
 
 	"github.com/btcsuite/btcd/btcec"
+	"github.com/cosmos/cosmos-sdk/codec/legacy"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/peer"
@@ -20,8 +21,7 @@ func GetPeerIDFromPubKey(pubkey string) (peer.ID, error) {
 	if err != nil {
 		return "", fmt.Errorf("fail to parse account pub key(%s): %w", pubkey, err)
 	}
-	secpPubKey := pk.(secp256k1.PubKeySecp256k1)
-	ppk, err := crypto.UnmarshalSecp256k1PublicKey(secpPubKey[:])
+	ppk, err := crypto.UnmarshalSecp256k1PublicKey(pk.Bytes())
 	if err != nil {
 		return "", fmt.Errorf("fail to convert pubkey to the crypto pubkey used in libp2p: %w", err)
 	}
@@ -81,8 +81,10 @@ func GetPubKeyFromPeerID(pID string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("faail to get pub key raw bytes: %w", err)
 	}
-	var pubkey secp256k1.PubKeySecp256k1
-	copy(pubkey[:], rawBytes)
+	pubkey, err := legacy.PubKeyFromBytes(rawBytes)
+	if err != nil {
+		return "", err
+	}
 	return sdk.Bech32ifyPubKey(sdk.Bech32PubKeyTypeAccPub, pubkey)
 }
 
@@ -97,15 +99,16 @@ func GetPriKey(priKeyString string) (tcrypto.PrivKey, error) {
 	}
 	var keyBytesArray [32]byte
 	copy(keyBytesArray[:], rawBytes[:32])
-	priKey := secp256k1.PrivKeySecp256k1(keyBytesArray)
+	var priKey secp256k1.PrivKey
+	copy(priKey, keyBytesArray[:32])
 	return priKey, nil
 }
 
 func GetPriKeyRawBytes(priKey tcrypto.PrivKey) ([]byte, error) {
 	var keyBytesArray [32]byte
-	pk, ok := priKey.(secp256k1.PrivKeySecp256k1)
+	pk, ok := priKey.(secp256k1.PrivKey)
 	if !ok {
-		return nil, errors.New("private key is not secp256p1.PrivKeySecp256k1")
+		return nil, errors.New("private key is not secp256p1.PrivKey")
 	}
 	copy(keyBytesArray[:], pk[:])
 	return keyBytesArray[:], nil
@@ -116,8 +119,7 @@ func CheckKeyOnCurve(pk string) (bool, error) {
 	if err != nil {
 		return false, fmt.Errorf("fail to parse pub key(%s): %w", pk, err)
 	}
-	rawPk := pubKey.(secp256k1.PubKeySecp256k1)
-	bPk, err := btcec.ParsePubKey(rawPk[:], btcec.S256())
+	bPk, err := btcec.ParsePubKey(pubKey.Bytes(), btcec.S256())
 	if err != nil {
 		return false, err
 	}

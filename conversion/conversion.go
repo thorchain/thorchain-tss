@@ -14,19 +14,20 @@ import (
 	"github.com/binance-chain/go-sdk/common/types"
 	"github.com/binance-chain/tss-lib/crypto"
 	"github.com/btcsuite/btcd/btcec"
+	"github.com/cosmos/cosmos-sdk/codec/legacy"
+	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
 	btss "github.com/binance-chain/tss-lib/tss"
 	crypto2 "github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/peer"
-	"github.com/tendermint/tendermint/crypto/secp256k1"
 
 	"gitlab.com/thorchain/tss/go-tss/messages"
 )
 
 // GetPeerIDFromSecp256PubKey convert the given pubkey into a peer.ID
-func GetPeerIDFromSecp256PubKey(pk secp256k1.PubKeySecp256k1) (peer.ID, error) {
-	ppk, err := crypto2.UnmarshalSecp256k1PublicKey(pk[:])
+func GetPeerIDFromSecp256PubKey(pk cryptotypes.PubKey) (peer.ID, error) {
+	ppk, err := crypto2.UnmarshalSecp256k1PublicKey(pk.Bytes())
 	if err != nil {
 		return peer.ID(""), fmt.Errorf("fail to convert pubkey to the crypto pubkey used in libp2p: %w", err)
 	}
@@ -38,8 +39,10 @@ func GetPeerIDFromPartyID(partyID *btss.PartyID) (peer.ID, error) {
 		return "", errors.New("invalid partyID")
 	}
 	pkBytes := partyID.KeyInt().Bytes()
-	var pk secp256k1.PubKeySecp256k1
-	copy(pk[:], pkBytes)
+	pk, err := legacy.PubKeyFromBytes(pkBytes)
+	if err != nil {
+		return "", err
+	}
 	return GetPeerIDFromSecp256PubKey(pk)
 }
 
@@ -48,8 +51,10 @@ func PartyIDtoPubKey(party *btss.PartyID) (string, error) {
 		return "", errors.New("invalid party")
 	}
 	partyKeyBytes := party.GetKey()
-	var pk secp256k1.PubKeySecp256k1
-	copy(pk[:], partyKeyBytes)
+	pk, err := legacy.PubKeyFromBytes(partyKeyBytes)
+	if err != nil {
+		return "", err
+	}
 	pubKey, err := sdk.Bech32ifyPubKey(sdk.Bech32PubKeyTypeAccPub, pk)
 	if err != nil {
 		return "", err
@@ -115,8 +120,7 @@ func GetParties(keys []string, localPartyKey string) ([]*btss.PartyID, *btss.Par
 		if err != nil {
 			return nil, nil, fmt.Errorf("fail to get account pub key address(%s): %w", item, err)
 		}
-		secpPk := pk.(secp256k1.PubKeySecp256k1)
-		key := new(big.Int).SetBytes(secpPk[:])
+		key := new(big.Int).SetBytes(pk.Bytes())
 		// Set up the parameters
 		// Note: The `id` and `moniker` fields are for convenience to allow you to easily track participants.
 		// The `id` should be a unique string representing this party in the network and `moniker` can be anything (even left blank).
@@ -157,8 +161,10 @@ func GetTssPubKey(pubKeyPoint *crypto.ECPoint) (string, types.AccAddress, error)
 		X:     pubKeyPoint.X(),
 		Y:     pubKeyPoint.Y(),
 	}
-	var pubKeyCompressed secp256k1.PubKeySecp256k1
-	copy(pubKeyCompressed[:], tssPubKey.SerializeCompressed())
+	pubKeyCompressed, err := legacy.PubKeyFromBytes(tssPubKey.SerializeCompressed())
+	if err != nil {
+		return "", types.AccAddress{}, err
+	}
 	pubKey, err := sdk.Bech32ifyPubKey(sdk.Bech32PubKeyTypeAccPub, pubKeyCompressed)
 	addr := types.AccAddress(pubKeyCompressed.Address().Bytes())
 	return pubKey, addr, err
