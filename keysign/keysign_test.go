@@ -114,7 +114,8 @@ func (s *TssKeysignTestSuite) SetUpSuite(c *C) {
 		c.Assert(err, IsNil)
 		var keyBytesArray [32]byte
 		copy(keyBytesArray[:], rawBytes[:32])
-		priKey := secp256k1.PrivKeySecp256k1(keyBytesArray)
+		var priKey secp256k1.PrivKey
+		copy(priKey, keyBytesArray[:32])
 		s.nodePrivKeys = append(s.nodePrivKeys, priKey)
 	}
 

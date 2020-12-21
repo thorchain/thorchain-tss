@@ -8,6 +8,7 @@ import (
 	"sync"
 
 	bkeygen "github.com/binance-chain/tss-lib/ecdsa/keygen"
+	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/libp2p/go-libp2p-peerstore/addr"
@@ -52,7 +53,7 @@ func NewTss(
 	preParams *bkeygen.LocalPreParams,
 	externalIP string,
 ) (*TssServer, error) {
-	pubKey, err := sdk.Bech32ifyPubKey(sdk.Bech32PubKeyTypeAccPub, priKey.PubKey())
+	pubKey, err := sdk.Bech32ifyPubKey(sdk.Bech32PubKeyTypeAccPub, priKey.PubKey().(cryptotypes.PubKey))
 	if err != nil {
 		return nil, fmt.Errorf("fail to genearte the key: %w", err)
 	}
