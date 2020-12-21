@@ -93,7 +93,7 @@ func verifySignature(pubKey tcrypto.PubKey, message, sig []byte, msgID string) b
 	var dataForSign bytes.Buffer
 	dataForSign.Write(message)
 	dataForSign.WriteString(msgID)
-	return pubKey.VerifyBytes(dataForSign.Bytes(), sig)
+	return pubKey.VerifySignature(dataForSign.Bytes(), sig)
 }
 
 func getHighestFreq(confirmedList map[string]string) (string, int, error) {

@@ -9,7 +9,6 @@ import (
 	"github.com/binance-chain/tss-lib/common"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/tendermint/btcd/btcec"
-	"github.com/tendermint/tendermint/crypto/secp256k1"
 )
 
 // Notifier is design to receive keysign signature, success or failure
@@ -49,8 +48,7 @@ func (n *Notifier) verifySignature(data *common.ECSignature) (bool, error) {
 	if err != nil {
 		return false, fmt.Errorf("fail to get pubkey from bech32 pubkey string(%s):%w", n.poolPubKey, err)
 	}
-	pk := pubKey.(secp256k1.PubKeySecp256k1)
-	pub, err := btcec.ParsePubKey(pk[:], btcec.S256())
+	pub, err := btcec.ParsePubKey(pubKey.Bytes(), btcec.S256())
 	if err != nil {
 		return false, err
 	}
