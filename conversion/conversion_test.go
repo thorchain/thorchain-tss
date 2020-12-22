@@ -8,8 +8,7 @@ import (
 
 	"github.com/binance-chain/tss-lib/crypto"
 	"github.com/btcsuite/btcd/btcec"
-	"github.com/cosmos/cosmos-sdk/codec/legacy"
-	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
+	coskey "github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/libp2p/go-libp2p-core/peer"
 	. "gopkg.in/check.v1"
@@ -63,16 +62,19 @@ func (p *ConversionTestSuite) TestAccPubKeysFromPartyIDs(c *C) {
 func (p *ConversionTestSuite) TestGetParties(c *C) {
 	partiesID, localParty, err := GetParties(p.testPubKeys, p.testPubKeys[0])
 	c.Assert(err, IsNil)
-	pk, err := legacy.PubKeyFromBytes(localParty.Key)
+	pk := coskey.PubKey{
+		Key: localParty.Key[:],
+	}
 	c.Assert(err, IsNil)
-	got, err := sdk.Bech32ifyPubKey(sdk.Bech32PubKeyTypeAccPub, pk)
+	got, err := sdk.Bech32ifyPubKey(sdk.Bech32PubKeyTypeAccPub, &pk)
 	c.Assert(err, IsNil)
 	c.Assert(got, Equals, p.testPubKeys[0])
 	var gotKeys []string
 	for _, val := range partiesID {
-		pk, err := legacy.PubKeyFromBytes(val.Key)
-		c.Assert(err, IsNil)
-		got, err := sdk.Bech32ifyPubKey(sdk.Bech32PubKeyTypeAccPub, pk)
+		pk := coskey.PubKey{
+			Key: val.Key,
+		}
+		got, err := sdk.Bech32ifyPubKey(sdk.Bech32PubKeyTypeAccPub, &pk)
 		c.Assert(err, IsNil)
 		gotKeys = append(gotKeys, got)
 	}
@@ -104,13 +106,10 @@ func (p *ConversionTestSuite) TestGetPeerIDFromPartyID(c *C) {
 func (p *ConversionTestSuite) TestGetPeerIDFromSecp256PubKey(c *C) {
 	_, localParty, err := GetParties(p.testPubKeys, p.testPubKeys[0])
 	c.Assert(err, IsNil)
-	pk, err := legacy.PubKeyFromBytes(localParty.Key)
-	c.Assert(err, IsNil)
-	got, err := GetPeerIDFromSecp256PubKey(pk)
+	got, err := GetPeerIDFromSecp256PubKey(localParty.Key[:])
 	c.Assert(err, IsNil)
 	c.Assert(got, Equals, p.localPeerID)
-	var testKey cryptotypes.PubKey
-	_, err = GetPeerIDFromSecp256PubKey(testKey)
+	_, err = GetPeerIDFromSecp256PubKey(nil)
 	c.Assert(err, NotNil)
 }
 
@@ -188,9 +187,10 @@ func (p *ConversionTestSuite) TestSetupPartyIDMap(c *C) {
 	partyIDMap := SetupPartyIDMap(partiesID)
 	var pubKeys []string
 	for _, el := range partyIDMap {
-		pk, err := legacy.PubKeyFromBytes(el.Key)
-		c.Assert(err, IsNil)
-		got, err := sdk.Bech32ifyPubKey(sdk.Bech32PubKeyTypeAccPub, pk)
+		pk := coskey.PubKey{
+			Key: el.Key,
+		}
+		got, err := sdk.Bech32ifyPubKey(sdk.Bech32PubKeyTypeAccPub, &pk)
 		c.Assert(err, IsNil)
 		pubKeys = append(pubKeys, got)
 	}

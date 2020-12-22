@@ -13,7 +13,7 @@ import (
 
 	"github.com/binance-chain/tss-lib/ecdsa/keygen"
 	"github.com/btcsuite/btcd/btcec"
-	"github.com/cosmos/cosmos-sdk/codec/legacy"
+	coskey "github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
@@ -59,11 +59,11 @@ func getTssPubKey(x, y *big.Int) (string, sdk.AccAddress, error) {
 		X:     x,
 		Y:     y,
 	}
-	pubKeyCompressed, err := legacy.PubKeyFromBytes(tssPubKey.SerializeCompressed())
-	if err != nil {
-		return "", sdk.AccAddress{}, err
+	pubKeyCompressed := coskey.PubKey{
+		Key: tssPubKey.SerializeCompressed(),
 	}
-	pubKey, err := sdk.Bech32ifyPubKey(sdk.Bech32PubKeyTypeAccPub, pubKeyCompressed)
+
+	pubKey, err := sdk.Bech32ifyPubKey(sdk.Bech32PubKeyTypeAccPub, &pubKeyCompressed)
 	addr := sdk.AccAddress(pubKeyCompressed.Address().Bytes())
 	return pubKey, addr, err
 }

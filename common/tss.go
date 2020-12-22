@@ -585,7 +585,7 @@ func (t *TssCommon) processTSSMsg(wireMsg *messages.WireMessage, msgType message
 	}
 	keyBytes := dataOwner.GetKey()
 	var pk secp256k1.PubKey
-	copy(pk[:], keyBytes)
+	pk = keyBytes
 	ok = verifySignature(pk, wireMsg.Message, wireMsg.Sig, t.msgID)
 	if !ok {
 		t.logger.Error().Msg("fail to verify the signature")
