@@ -5,10 +5,10 @@ import (
 	"math/rand"
 
 	"github.com/blang/semver"
-	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	atypes "github.com/cosmos/cosmos-sdk/x/auth/vesting/types"
 	"github.com/libp2p/go-libp2p-core/peer"
+	"github.com/tendermint/tendermint/crypto/secp256k1"
 )
 
 // GetRandomPubKey for test
@@ -21,7 +21,9 @@ func GetRandomPubKey() string {
 // GetRandomPeerID for test
 func GetRandomPeerID() peer.ID {
 	_, pubKey, _ := atypes.KeyTestPubAddr()
-	peerID, _ := GetPeerIDFromSecp256PubKey(pubKey.(cryptotypes.PubKey))
+	var pk secp256k1.PubKey
+	copy(pk[:], pubKey.Bytes())
+	peerID, _ := GetPeerIDFromSecp256PubKey(pk)
 	return peerID
 }
 

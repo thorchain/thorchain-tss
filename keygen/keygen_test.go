@@ -79,10 +79,8 @@ func (s *TssKeygenTestSuite) SetUpSuite(c *C) {
 		c.Assert(err, IsNil)
 		rawBytes, err := hex.DecodeString(string(priHexBytes))
 		c.Assert(err, IsNil)
-		var keyBytesArray [32]byte
-		copy(keyBytesArray[:], rawBytes[:32])
 		var priKey secp256k1.PrivKey
-		copy(priKey, keyBytesArray[:32])
+		priKey = rawBytes[:32]
 		s.nodePrivKeys = append(s.nodePrivKeys, priKey)
 	}
 
@@ -119,13 +117,13 @@ func (s *TssKeygenTestSuite) SetUpTest(c *C) {
 		if i == 0 {
 			comm, err := p2p.NewCommunication("asgard", nil, ports[i], "")
 			c.Assert(err, IsNil)
-			c.Assert(comm.Start(buf), IsNil)
+			c.Assert(comm.Start(buf[:]), IsNil)
 			s.comms[i] = comm
 			continue
 		}
 		comm, err := p2p.NewCommunication("asgard", []maddr.Multiaddr{multiAddr}, ports[i], "")
 		c.Assert(err, IsNil)
-		c.Assert(comm.Start(buf), IsNil)
+		c.Assert(comm.Start(buf[:]), IsNil)
 		s.comms[i] = comm
 	}
 

@@ -13,12 +13,10 @@ import (
 
 	"github.com/binance-chain/go-sdk/common/types"
 	"github.com/binance-chain/tss-lib/crypto"
-	"github.com/btcsuite/btcd/btcec"
-	"github.com/cosmos/cosmos-sdk/codec/legacy"
-	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
-	sdk "github.com/cosmos/cosmos-sdk/types"
-
 	btss "github.com/binance-chain/tss-lib/tss"
+	"github.com/btcsuite/btcd/btcec"
+	coskey "github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	crypto2 "github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/peer"
 
@@ -26,10 +24,13 @@ import (
 )
 
 // GetPeerIDFromSecp256PubKey convert the given pubkey into a peer.ID
-func GetPeerIDFromSecp256PubKey(pk cryptotypes.PubKey) (peer.ID, error) {
-	ppk, err := crypto2.UnmarshalSecp256k1PublicKey(pk.Bytes())
+func GetPeerIDFromSecp256PubKey(pk []byte) (peer.ID, error) {
+	if len(pk) == 0 {
+		return "", errors.New("empty public key raw bytes")
+	}
+	ppk, err := crypto2.UnmarshalSecp256k1PublicKey(pk)
 	if err != nil {
-		return peer.ID(""), fmt.Errorf("fail to convert pubkey to the crypto pubkey used in libp2p: %w", err)
+		return "", fmt.Errorf("fail to convert pubkey to the crypto pubkey used in libp2p: %w", err)
 	}
 	return peer.IDFromPublicKey(ppk)
 }
@@ -39,11 +40,7 @@ func GetPeerIDFromPartyID(partyID *btss.PartyID) (peer.ID, error) {
 		return "", errors.New("invalid partyID")
 	}
 	pkBytes := partyID.KeyInt().Bytes()
-	pk, err := legacy.PubKeyFromBytes(pkBytes)
-	if err != nil {
-		return "", err
-	}
-	return GetPeerIDFromSecp256PubKey(pk)
+	return GetPeerIDFromSecp256PubKey(pkBytes)
 }
 
 func PartyIDtoPubKey(party *btss.PartyID) (string, error) {
@@ -51,11 +48,10 @@ func PartyIDtoPubKey(party *btss.PartyID) (string, error) {
 		return "", errors.New("invalid party")
 	}
 	partyKeyBytes := party.GetKey()
-	pk, err := legacy.PubKeyFromBytes(partyKeyBytes)
-	if err != nil {
-		return "", err
+	pk := coskey.PubKey{
+		Key: partyKeyBytes,
 	}
-	pubKey, err := sdk.Bech32ifyPubKey(sdk.Bech32PubKeyTypeAccPub, pk)
+	pubKey, err := sdk.Bech32ifyPubKey(sdk.Bech32PubKeyTypeAccPub, &pk)
 	if err != nil {
 		return "", err
 	}
@@ -161,12 +157,13 @@ func GetTssPubKey(pubKeyPoint *crypto.ECPoint) (string, types.AccAddress, error)
 		X:     pubKeyPoint.X(),
 		Y:     pubKeyPoint.Y(),
 	}
-	pubKeyCompressed, err := legacy.PubKeyFromBytes(tssPubKey.SerializeCompressed())
-	if err != nil {
-		return "", types.AccAddress{}, err
+
+	compressedPubkey := coskey.PubKey{
+		Key: tssPubKey.SerializeCompressed(),
 	}
-	pubKey, err := sdk.Bech32ifyPubKey(sdk.Bech32PubKeyTypeAccPub, pubKeyCompressed)
-	addr := types.AccAddress(pubKeyCompressed.Address().Bytes())
+
+	pubKey, err := sdk.Bech32ifyPubKey(sdk.Bech32PubKeyTypeAccPub, &compressedPubkey)
+	addr := types.AccAddress(compressedPubkey.Address().Bytes())
 	return pubKey, addr, err
 }
 

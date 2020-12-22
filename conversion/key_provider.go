@@ -7,7 +7,7 @@ import (
 	"fmt"
 
 	"github.com/btcsuite/btcd/btcec"
-	"github.com/cosmos/cosmos-sdk/codec/legacy"
+	coskey "github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/peer"
@@ -81,11 +81,10 @@ func GetPubKeyFromPeerID(pID string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("faail to get pub key raw bytes: %w", err)
 	}
-	pubkey, err := legacy.PubKeyFromBytes(rawBytes)
-	if err != nil {
-		return "", err
+	pubKey := coskey.PubKey{
+		Key: rawBytes,
 	}
-	return sdk.Bech32ifyPubKey(sdk.Bech32PubKeyTypeAccPub, pubkey)
+	return sdk.Bech32ifyPubKey(sdk.Bech32PubKeyTypeAccPub, &pubKey)
 }
 
 func GetPriKey(priKeyString string) (tcrypto.PrivKey, error) {
@@ -97,10 +96,8 @@ func GetPriKey(priKeyString string) (tcrypto.PrivKey, error) {
 	if err != nil {
 		return nil, fmt.Errorf("fail to hex decode private key: %w", err)
 	}
-	var keyBytesArray [32]byte
-	copy(keyBytesArray[:], rawBytes[:32])
 	var priKey secp256k1.PrivKey
-	copy(priKey, keyBytesArray[:32])
+	priKey = rawBytes[:32]
 	return priKey, nil
 }
 

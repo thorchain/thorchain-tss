@@ -33,12 +33,10 @@ require (
 	github.com/stretchr/testify v1.6.1
 	github.com/tendermint/btcd v0.1.1
 	github.com/tendermint/tendermint v0.34.0
-	github.com/zenazn/goji v0.9.0 // indirect
 	golang.org/x/crypto v0.0.0-20201016220609-9e8e0b390897
 	golang.org/x/text v0.3.3
 	google.golang.org/protobuf v1.25.0
 	gopkg.in/check.v1 v1.0.0-20200902074654-038fdea0a05b
-	rsc.io/quote/v3 v3.1.0 // indirect
 )
 
 replace (
