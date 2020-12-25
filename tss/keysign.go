@@ -33,6 +33,7 @@ func (t *TssServer) waitForSignatures(msgID, poolPubKey string, msgToSign []byte
 	return keysign.NewResponse(
 		base64.StdEncoding.EncodeToString(data.R),
 		base64.StdEncoding.EncodeToString(data.S),
+		base64.StdEncoding.EncodeToString(data.GetSignatureRecovery()),
 		common.Success,
 		blame.Blame{},
 	), nil
@@ -175,6 +176,7 @@ func (t *TssServer) generateSignature(msgID string, msgToSign []byte, req keysig
 	return keysign.NewResponse(
 		base64.StdEncoding.EncodeToString(signatureData.GetSignature().R),
 		base64.StdEncoding.EncodeToString(signatureData.GetSignature().S),
+		base64.StdEncoding.EncodeToString(signatureData.GetSignature().GetSignatureRecovery()),
 		common.Success,
 		blame.Blame{},
 	), nil
