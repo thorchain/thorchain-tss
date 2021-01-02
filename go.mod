@@ -11,6 +11,7 @@ require (
 	github.com/davidlazar/go-crypto v0.0.0-20200604182044-b73af7476f6c // indirect
 	github.com/deckarep/golang-set v1.7.1
 	github.com/decred/dcrd/dcrec/secp256k1 v1.0.3
+	github.com/gogo/protobuf v1.3.1
 	github.com/golang/protobuf v1.4.3
 	github.com/gorilla/mux v1.8.0
 	github.com/ipfs/go-log v1.0.4
