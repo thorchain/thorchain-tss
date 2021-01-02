@@ -3,8 +3,8 @@ module gitlab.com/thorchain/tss/go-tss
 go 1.14
 
 require (
-	github.com/binance-chain/go-sdk v0.0.0-00010101000000-000000000000
-	github.com/binance-chain/tss-lib v0.0.0-00010101000000-000000000000
+	github.com/binance-chain/go-sdk v1.2.2
+	github.com/binance-chain/tss-lib v0.0.0-20201118045712-70b2cb4bf916
 	github.com/blang/semver v3.5.1+incompatible
 	github.com/btcsuite/btcd v0.21.0-beta
 	github.com/cosmos/cosmos-sdk v0.40.0-rc5
