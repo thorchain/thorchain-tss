@@ -4,7 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 
-	"github.com/binance-chain/go-sdk/common/uuid"
+	"gitlab.com/thorchain/binance-sdk/common/uuid"
 
 	"golang.org/x/crypto/pbkdf2"
 	"golang.org/x/crypto/sha3"

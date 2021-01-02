@@ -10,10 +10,10 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/binance-chain/go-sdk/common/types"
 	"github.com/cosmos/cosmos-sdk/client/input"
 	golog "github.com/ipfs/go-log"
 	"github.com/libp2p/go-libp2p-peerstore/addr"
+	"gitlab.com/thorchain/binance-sdk/common/types"
 
 	"gitlab.com/thorchain/tss/go-tss/common"
 	"gitlab.com/thorchain/tss/go-tss/conversion"

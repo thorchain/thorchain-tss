@@ -11,7 +11,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/binance-chain/go-sdk/common/types"
 	"github.com/binance-chain/tss-lib/crypto"
 	btss "github.com/binance-chain/tss-lib/tss"
 	"github.com/btcsuite/btcd/btcec"
@@ -19,6 +18,7 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	crypto2 "github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/peer"
+	"gitlab.com/thorchain/binance-sdk/common/types"
 
 	"gitlab.com/thorchain/tss/go-tss/messages"
 )
